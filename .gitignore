@@ -31,6 +31,9 @@ venv/
 coverage.xml
 htmlcov/
 
+# --- Claude Code (personal overrides stay local) -------------------------------
+.claude/settings.local.json
+
 # --- Editors / OS -------------------------------------------------------------
 .idea/
 .vscode/
