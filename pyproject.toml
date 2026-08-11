@@ -37,6 +37,7 @@ classifiers = [
 ]
 dependencies = [
     "cryptography>=42.0",
+    "pydantic>=2.13.4",
     "signxml>=5.1.0",
 ]
 

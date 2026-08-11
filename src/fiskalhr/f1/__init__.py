@@ -7,6 +7,18 @@ Phase 1.
 """
 
 from fiskalhr.f1.error_codes import CIS_ERROR_MESSAGES
+from fiskalhr.f1.messages import build_racun_zahtjev, parse_racun_odgovor
+from fiskalhr.f1.models import (
+    BrojRacuna,
+    Greska,
+    NacinPlacanja,
+    Naknada,
+    OznakaSlijednosti,
+    Porez,
+    PorezOstalo,
+    Racun,
+    RacunOdgovor,
+)
 from fiskalhr.f1.service import SCHEMA_VERSION, SERVICE_URLS
 from fiskalhr.f1.zki import ZKI_DATETIME_FORMAT, izracunaj_zki, zki_payload
 
@@ -15,6 +27,17 @@ __all__ = [
     "SCHEMA_VERSION",
     "SERVICE_URLS",
     "ZKI_DATETIME_FORMAT",
+    "BrojRacuna",
+    "Greska",
+    "NacinPlacanja",
+    "Naknada",
+    "OznakaSlijednosti",
+    "Porez",
+    "PorezOstalo",
+    "Racun",
+    "RacunOdgovor",
+    "build_racun_zahtjev",
     "izracunaj_zki",
+    "parse_racun_odgovor",
     "zki_payload",
 ]

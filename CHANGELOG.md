@@ -19,6 +19,13 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f1.models` — Pydantic v2 models mirroring FiskalizacijaSchema
+  v1.10 (`Racun`, `Porez`, `PorezOstalo`, `Naknada`, `BrojRacuna`,
+  `NacinPlacanja`, `OznakaSlijednosti`, `RacunOdgovor`); frozen, unknown
+  fields rejected, OIB fields checksum-validated.
+- `fiskalhr.f1.messages` — `build_racun_zahtjev` / `parse_racun_odgovor`;
+  every built document is validated against the vendored official XSD in
+  tests, signed and unsigned.
 - `fiskalhr.core.xmldsig` — enveloped XML-DSig signing and verification per
   spec v2.7 ch. 7 (exclusive-c14n requests, inclusive-c14n responses,
   RSA-SHA256 default with explicit legacy SHA-1, `KeyInfo` with certificate

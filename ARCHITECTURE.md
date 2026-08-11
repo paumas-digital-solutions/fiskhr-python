@@ -25,8 +25,8 @@ src/fiskalhr/
 │   ├── zki.py            # offline ZKI computation                 [done]
 │   ├── service.py        # endpoints, SCHEMA_VERSION               [done]
 │   ├── error_codes.py    # s001–s013 table from the spec           [done]
-│   ├── models.py         # RacunType, PoslovniProstor, Porez, ...  [Phase 1]
-│   ├── messages.py       # request/response XML serialisation      [Phase 1]
+│   ├── models.py         # Racun, Porez, BrojRacuna, ... (Pydantic) [done]
+│   ├── messages.py       # request/response XML serialisation      [done]
 │   ├── client.py         # FiskalizacijaClient (public F1 surface) [Phase 1]
 │   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
@@ -133,6 +133,11 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
 
 ## Decisions made
 
+- **Models: Pydantic v2** (over plain dataclasses). The validation is the
+  product: OIB checksums, schema patterns (``BrOznRac``, ``OznPosPr``), and
+  frozen value semantics come for free, and the library's primary consumers
+  (FastAPI-based systems) already carry the dependency. Models are frozen
+  and reject unknown fields (``extra="forbid"``) so typos fail loudly.
 - **XML-DSig: `signxml`** (over `lxml` + `xmlsec`). Rationale: pure-Python
   dependency chain (lxml + cryptography, no libxmlsec system library),
   supports the exact spec profile (enveloped + exc-c14n requests,
@@ -144,7 +149,5 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
 
 ## Open questions (resolve before the relevant phase)
 
-- **Pydantic v2 vs dataclasses** for F1/F2 models — leaning Pydantic v2 (the
-  validation is the product); decide at the start of the F1 models work.
 - Whether the FINA e-Račun module's own signing makes the `Posrednik` adapter
   thinner than expected (open question with FINA support; affects Phase 4).
