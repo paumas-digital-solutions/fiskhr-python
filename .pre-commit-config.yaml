@@ -1,0 +1,36 @@
+# Install once per clone: `uv run pre-commit install` (or `pipx run pre-commit install`).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  # Certificate material must never enter the repository, not even test
+  # fixtures — tests generate throwaway self-signed certs at runtime.
+  - repo: local
+    hooks:
+      - id: forbid-certificate-files
+        name: forbid certificate/key files
+        entry: >-
+          Certificate and key files must never be committed.
+          Tests generate throwaway certificates at runtime.
+        language: fail
+        files: '\.(p12|pfx|pem|key|crt|cer|der|jks)$'
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

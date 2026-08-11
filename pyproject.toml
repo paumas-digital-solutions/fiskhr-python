@@ -1,0 +1,111 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fiskalhr"
+version = "0.0.1"
+description = "Croatian fiscalization for Python: Fiskalizacija 1.0 (B2C receipts, ZKI, CIS) and Fiskalizacija 2.0 (eRacun, UBL 2.1, HR CIUS 2025)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Paumas Digital Solutions", email = "thomas@paumas.hr" },
+]
+keywords = [
+    "fiskalizacija",
+    "croatia",
+    "eracun",
+    "einvoice",
+    "en16931",
+    "hr-cius-2025",
+    "ubl",
+    "cis",
+    "zki",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Typing :: Typed",
+]
+dependencies = [
+    "cryptography>=42.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/paumas-digital-solutions/fiskhr-python"
+Repository = "https://github.com/paumas-digital-solutions/fiskhr-python"
+Issues = "https://github.com/paumas-digital-solutions/fiskhr-python/issues"
+Changelog = "https://github.com/paumas-digital-solutions/fiskhr-python/blob/main/CHANGELOG.md"
+
+[project.scripts]
+fiskalhr = "fiskalhr.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pre-commit>=4.0",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fiskalhr"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "A",   # flake8-builtins
+    "ARG", # flake8-unused-arguments
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "ISC", # implicit string concatenation
+    "N",   # pep8-naming
+    "PIE", # flake8-pie
+    "PT",  # flake8-pytest-style
+    "PTH", # flake8-use-pathlib
+    "RET", # flake8-return
+    "RUF", # ruff-specific
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "ISC001", # conflicts with the ruff formatter
+]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["src", "tests"]
+pretty = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not demo' --strict-markers"
+markers = [
+    "demo: tests that talk to the CIS demo environment; require FINA demo certificates and are never run in CI",
+]
+
+[tool.coverage.run]
+source = ["fiskalhr"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 85
