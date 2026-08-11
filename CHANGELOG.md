@@ -9,7 +9,27 @@ targets (see `docs/specs/SOURCES.md`).
 
 ## [Unreleased]
 
+### Changed
+
+- **ZKI now defaults to RSA-SHA256** per tech spec v2.7 (pseudocode ch. 12).
+  The test environment rejects RSA-SHA1 since 2026-07-01; production keeps
+  accepting it until end of 2026 (from 2027-01-01 SHA-256 only).
+  `izracunaj_zki` takes `method=SignatureMethod.RSA_SHA1` to reproduce
+  legacy ZKIs.
+
 ### Added
+
+- Vendored F1 specification set, targeting **tech spec v2.7 (21.07.2026)**
+  and **schema/WSDL v1.10**: `FiskalizacijaSchema.xsd`, W3C xmldsig schema,
+  EDUC + PROD WSDLs (shipped inside the package), spec PDF and release notes
+  under `docs/specs/f1/`, all recorded in `docs/specs/SOURCES.md`.
+- `fiskalhr.core.signing.SignatureMethod` — RSA-SHA256 / RSA-SHA1 with the
+  migration timeline documented, shared by ZKI and (upcoming) XML-DSig.
+- `fiskalhr.f1.service` — authoritative demo/production endpoint URLs
+  (spec §6.1) and `SCHEMA_VERSION`; documents that the official PROD WSDL
+  bundle ships with the test URL in `soap:address`.
+- `fiskalhr.f1.error_codes.CIS_ERROR_MESSAGES` — the full s001–s013 error
+  table from spec v2.7, verbatim Croatian server messages.
 
 - Project scaffold: src layout, `pyproject.toml` (hatchling + uv), ruff,
   mypy `--strict`, pytest with coverage gate, pre-commit (incl. secret

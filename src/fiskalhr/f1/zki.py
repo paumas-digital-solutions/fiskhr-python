@@ -1,18 +1,19 @@
 """ZKI (zastitni kod izdavatelja) computation.
 
-The ZKI is defined by the Fiskalizacija 1.0 technical specification as:
+The ZKI is defined in chapter 12 of the Fiskalizacija tech spec (v2.7):
 
 1. Concatenate, in order, with no separators: OIB, date and time of issue
-   (``dd.mm.yyyy HH:MM:SS``), receipt number (``brOznRac``), business premises
+   (``dd.MM.yyyy HH:mm:ss``), receipt number (``brOznRac``), business premises
    code (``oznPosPr``), payment device code (``oznNapUr``), and the total
    amount with exactly two decimals and ``.`` as the separator.
 2. Sign the UTF-8 bytes of that string with the issuer's private key using
-   RSA-SHA1 (PKCS#1 v1.5).
+   RSA (PKCS#1 v1.5). The spec's pseudocode and reference implementations use
+   **RSA-SHA256**; RSA-SHA1 is the legacy method still accepted in production
+   until the end of 2026 (see `fiskalhr.core.signing` for the timeline).
 3. The ZKI is the lowercase hex MD5 digest of the signature bytes.
 
-SHA-1 and MD5 are mandated by the specification and are not used here for
-collision resistance — the ZKI is a receipt fingerprint, not a security
-primitive. They are not a choice this library gets to make.
+MD5 here is mandated by the specification (RFC 1321 per the spec text) and is
+a receipt fingerprint, not a security primitive.
 
 ZKI computation is deliberately offline: a receipt must show its ZKI even when
 CIS is unreachable, so nothing in this module touches the network.
@@ -24,9 +25,9 @@ import hashlib
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
+from fiskalhr.core.signing import SignatureMethod
 from fiskalhr.core.types import validate_oib
 
 __all__ = ["ZKI_DATETIME_FORMAT", "format_iznos", "izracunaj_zki", "zki_payload"]
@@ -84,8 +85,15 @@ def izracunaj_zki(
     ozn_pos_pr: str,
     ozn_nap_ur: str,
     ukupan_iznos: Decimal | int | str,
+    method: SignatureMethod = SignatureMethod.RSA_SHA256,
 ) -> str:
     """Compute the ZKI for a receipt. Works fully offline.
+
+    Args:
+        method: Signature method for step 2. Defaults to RSA-SHA256 per the
+            current spec; pass ``SignatureMethod.RSA_SHA1`` only to reproduce
+            ZKIs computed with the legacy method (accepted in production
+            until the end of 2026).
 
     Returns:
         The 32-character lowercase hex ZKI.
@@ -101,6 +109,6 @@ def izracunaj_zki(
     signature = private_key.sign(
         payload.encode("utf-8"),
         padding.PKCS1v15(),
-        hashes.SHA1(),
+        method.hash_algorithm,
     )
     return hashlib.md5(signature, usedforsecurity=False).hexdigest()

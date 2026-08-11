@@ -9,6 +9,8 @@ repos:
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
+        # Vendored spec PDFs (docs/specs/) exceed the 500 KB default.
+        args: [--maxkb=6000]
       - id: detect-private-key
 
   # Certificate material must never enter the repository, not even test

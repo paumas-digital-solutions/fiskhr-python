@@ -13,6 +13,10 @@
 > **Status: pre-alpha.** The core layer (certificates, OIB validation, offline
 > ZKI computation) works and is fully tested. The F1 client is in progress;
 > see the [roadmap](#roadmap). Nothing here is API-stable before v1.0.
+>
+> Targets **F1 tech spec v2.7 (21.07.2026)** and **schema/WSDL v1.10**,
+> including the RSA-SHA1 → RSA-SHA256 migration (SHA-256 is the default;
+> the test environment rejects SHA-1 since July 2026).
 
 *Hrvatska verzija: [README.hr.md](README.hr.md)*
 

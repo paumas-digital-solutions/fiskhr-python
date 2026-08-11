@@ -14,6 +14,7 @@ from fiskalhr.core.errors import (
     InvalidOibError,
     SignatureVerificationError,
 )
+from fiskalhr.core.signing import SignatureMethod
 from fiskalhr.core.types import is_valid_oib, validate_oib
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "Environment",
     "FiskalizacijaError",
     "InvalidOibError",
+    "SignatureMethod",
     "SignatureVerificationError",
     "is_valid_oib",
     "validate_oib",
