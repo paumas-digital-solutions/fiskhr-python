@@ -16,6 +16,7 @@ from fiskalhr.core.errors import (
 )
 from fiskalhr.core.signing import SignatureMethod
 from fiskalhr.core.types import is_valid_oib, validate_oib
+from fiskalhr.core.xmldsig import sign_enveloped, verify_enveloped
 
 __all__ = [
     "Certificate",
@@ -27,5 +28,7 @@ __all__ = [
     "SignatureMethod",
     "SignatureVerificationError",
     "is_valid_oib",
+    "sign_enveloped",
     "validate_oib",
+    "verify_enveloped",
 ]

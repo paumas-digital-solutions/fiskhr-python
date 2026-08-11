@@ -19,6 +19,12 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.core.xmldsig` — enveloped XML-DSig signing and verification per
+  spec v2.7 ch. 7 (exclusive-c14n requests, inclusive-c14n responses,
+  RSA-SHA256 default with explicit legacy SHA-1, `KeyInfo` with certificate
+  + issuer/serial). Built on `signxml`; verification requires an expected
+  certificate or a loud `trust_embedded_certificate=True` opt-in. Tests pin
+  the produced XML to the spec profile.
 - Vendored F1 specification set, targeting **tech spec v2.7 (21.07.2026)**
   and **schema/WSDL v1.10**: `FiskalizacijaSchema.xsd`, W3C xmldsig schema,
   EDUC + PROD WSDLs (shipped inside the package), spec PDF and release notes

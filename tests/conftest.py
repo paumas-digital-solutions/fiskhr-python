@@ -22,17 +22,21 @@ TEST_OIB = "12345678903"
 TEST_P12_PASSWORD = "test-password"
 
 
-@pytest.fixture(scope="session")
-def rsa_key() -> rsa.RSAPrivateKey:
+def make_rsa_key() -> rsa.RSAPrivateKey:
     return rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
 
-@pytest.fixture(scope="session")
-def self_signed_cert(rsa_key: rsa.RSAPrivateKey) -> x509.Certificate:
+def make_self_signed_cert(
+    key: rsa.RSAPrivateKey,
+    *,
+    organization: str = "TEST TVRTKA D.O.O.",
+    oib: str = TEST_OIB,
+) -> x509.Certificate:
+    """A throwaway self-signed certificate shaped like a FISKAL demo cert."""
     subject = issuer = x509.Name(
         [
             x509.NameAttribute(NameOID.COMMON_NAME, "FISKAL 1"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, f"TEST TVRTKA D.O.O. HR{TEST_OIB}"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, f"{organization} HR{oib}"),
             x509.NameAttribute(NameOID.COUNTRY_NAME, "HR"),
         ]
     )
@@ -41,12 +45,22 @@ def self_signed_cert(rsa_key: rsa.RSAPrivateKey) -> x509.Certificate:
         x509.CertificateBuilder()
         .subject_name(subject)
         .issuer_name(issuer)
-        .public_key(rsa_key.public_key())
+        .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - timedelta(days=1))
         .not_valid_after(now + timedelta(days=365))
-        .sign(rsa_key, hashes.SHA256())
+        .sign(key, hashes.SHA256())
     )
+
+
+@pytest.fixture(scope="session")
+def rsa_key() -> rsa.RSAPrivateKey:
+    return make_rsa_key()
+
+
+@pytest.fixture(scope="session")
+def self_signed_cert(rsa_key: rsa.RSAPrivateKey) -> x509.Certificate:
+    return make_self_signed_cert(rsa_key)
 
 
 @pytest.fixture

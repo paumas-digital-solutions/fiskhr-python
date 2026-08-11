@@ -16,16 +16,19 @@ src/fiskalhr/
 │   ├── certs.py          # P12 loading, cert inspection            [done]
 │   ├── environment.py    # DEMO / PRODUCTION selection             [done]
 │   ├── errors.py         # exception hierarchy                     [done]
+│   ├── signing.py        # SignatureMethod (SHA-256/SHA-1 timeline)[done]
 │   ├── types.py          # OIB validation, shared value objects    [done]
-│   ├── xmldsig.py        # enveloped signature create + verify     [Phase 1]
+│   ├── xmldsig.py        # enveloped signature create + verify     [done]
 │   └── transport.py      # SOAP/HTTP client, TLS, retries          [Phase 1]
 │
 ├── f1/                   # Fiskalizacija 1.0 — B2C, CIS
 │   ├── zki.py            # offline ZKI computation                 [done]
+│   ├── service.py        # endpoints, SCHEMA_VERSION               [done]
+│   ├── error_codes.py    # s001–s013 table from the spec           [done]
 │   ├── models.py         # RacunType, PoslovniProstor, Porez, ...  [Phase 1]
 │   ├── messages.py       # request/response XML serialisation      [Phase 1]
 │   ├── client.py         # FiskalizacijaClient (public F1 surface) [Phase 1]
-│   └── schemas/          # vendored XSDs, versioned                [Phase 1]
+│   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
 │   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules
@@ -128,11 +131,20 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
 5. **Conformance corpus** — known-valid and known-invalid UBL samples;
    validation tests assert the correct rule fires on each invalid one.
 
+## Decisions made
+
+- **XML-DSig: `signxml`** (over `lxml` + `xmlsec`). Rationale: pure-Python
+  dependency chain (lxml + cryptography, no libxmlsec system library),
+  supports the exact spec profile (enveloped + exc-c14n requests,
+  inclusive-c14n responses, RSA-SHA256 with an explicit legacy SHA-1 path),
+  and refuses SHA-1 by default, matching our secure-by-default posture.
+  ``tests/test_xmldsig.py`` pins the produced XML to the spec profile so a
+  library upgrade cannot silently change the wire format. Revisit only if
+  the demo-environment smoke test surfaces an interop failure.
+
 ## Open questions (resolve before the relevant phase)
 
 - **Pydantic v2 vs dataclasses** for F1/F2 models — leaning Pydantic v2 (the
-  validation is the product); decide at the start of Phase 1.
-- **`lxml` + `xmlsec` vs `signxml`** for XML-DSig — test both against golden
-  fixtures early; canonicalisation edge cases decide this.
+  validation is the product); decide at the start of the F1 models work.
 - Whether the FINA e-Račun module's own signing makes the `Posrednik` adapter
   thinner than expected (open question with FINA support; affects Phase 4).

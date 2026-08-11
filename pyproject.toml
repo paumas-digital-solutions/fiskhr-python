@@ -37,6 +37,7 @@ classifiers = [
 ]
 dependencies = [
     "cryptography>=42.0",
+    "signxml>=5.1.0",
 ]
 
 [project.urls]
@@ -50,6 +51,7 @@ fiskalhr = "fiskalhr.cli:main"
 
 [dependency-groups]
 dev = [
+    "lxml-stubs>=0.5.1",
     "mypy>=1.11",
     "pre-commit>=4.0",
     "pytest>=8.0",
