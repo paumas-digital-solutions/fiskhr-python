@@ -21,7 +21,13 @@ from fiskalhr.core.errors import FiskalizacijaError
 from fiskalhr.f1.models import Greska, Naknada, Porez, PorezOstalo, Racun, RacunOdgovor
 from fiskalhr.f1.zki import format_iznos
 
-__all__ = ["F73_NS", "build_racun_zahtjev", "parse_racun_odgovor"]
+__all__ = [
+    "F73_NS",
+    "build_echo_request",
+    "build_racun_zahtjev",
+    "parse_echo_response",
+    "parse_racun_odgovor",
+]
 
 F73_NS = "http://www.apis-it.hr/fin/2012/types/f73"
 _NSMAP = {"tns": F73_NS}
@@ -133,6 +139,21 @@ def build_racun_zahtjev(
         _el(element, "OibPrimateljaRacuna", racun.oib_primatelja_racuna)
 
     return root
+
+
+def build_echo_request(text: str) -> etree._Element:
+    """Build an ``EchoRequest`` — the unsigned connectivity-test message."""
+    root = etree.Element(_tag("EchoRequest"), nsmap=_NSMAP)
+    root.text = text
+    return root
+
+
+def parse_echo_response(xml: bytes | etree._Element) -> str:
+    """Parse an ``EchoResponse`` and return its text."""
+    root = etree.fromstring(xml) if isinstance(xml, bytes) else xml
+    if root.tag != _tag("EchoResponse"):
+        raise FiskalizacijaError(f"expected EchoResponse, got {root.tag!r}")
+    return root.text or ""
 
 
 def parse_racun_odgovor(xml: bytes | etree._Element) -> RacunOdgovor:

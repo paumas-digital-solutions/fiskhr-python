@@ -10,9 +10,11 @@
 - **Fiskalizacija 2.0 (F2)** — B2B eRačun: UBL 2.1 invoices conforming to
   HR CIUS 2025, plus the `eFiskalizacija` and `eIzvještavanje` messages.
 
-> **Status: pre-alpha.** The core layer (certificates, OIB validation, offline
-> ZKI computation) works and is fully tested. The F1 client is in progress;
-> see the [roadmap](#roadmap). Nothing here is API-stable before v1.0.
+> **Status: pre-alpha.** The F1 pipeline is implemented end to end —
+> certificates, offline ZKI, XML-DSig, SOAP transport, `FiskalizacijaClient`,
+> and a mock CIS server for offline testing. Demo-environment validation is
+> the next milestone; see the [roadmap](#roadmap). Nothing is API-stable
+> before v1.0.
 >
 > Targets **F1 tech spec v2.7 (21.07.2026)** and **schema/WSDL v1.10**,
 > including the RSA-SHA1 → RSA-SHA256 migration (SHA-256 is the default;
@@ -48,46 +50,56 @@ Requires Python 3.11+.
 
 ## Quickstart
 
-What works today (v0.0.x):
-
 ```python
 from datetime import datetime
 from decimal import Decimal
 
-from fiskalhr import Certificate
-from fiskalhr.f1 import izracunaj_zki
+from fiskalhr import Certificate, Environment
+from fiskalhr.f1 import (
+    BrojRacuna,
+    FiskalizacijaClient,
+    NacinPlacanja,
+    OznakaSlijednosti,
+    Porez,
+    Racun,
+)
 
 cert = Certificate.from_p12("FISKAL_1.p12", password="...")
-print(cert.subject, cert.oib, cert.not_valid_after)
 
-# ZKI is computed fully offline — you need it on the printed receipt
-# even when CIS is unreachable.
-zki = izracunaj_zki(
-    cert.private_key,
+racun = Racun(
     oib="12345678903",
-    datum_vrijeme=datetime.now(),
-    br_ozn_rac="1",
-    ozn_pos_pr="POSL1",
-    ozn_nap_ur="12",
-    ukupan_iznos=Decimal("125.00"),
+    u_sust_pdv=True,
+    dat_vrijeme=datetime.now(),
+    ozn_slijed=OznakaSlijednosti.POSLOVNI_PROSTOR,
+    br_rac=BrojRacuna(br_ozn_rac="1", ozn_pos_pr="POSL1", ozn_nap_ur="12"),
+    pdv=(Porez(stopa=Decimal("25.00"), osnovica=Decimal("100.00"), iznos=Decimal("25.00")),),
+    iznos_ukupno=Decimal("125.00"),
+    nacin_plac=NacinPlacanja.KARTICA,
+    oib_oper="12345678903",
 )
+
+client = FiskalizacijaClient(cert, env=Environment.DEMO)
+
+zki = client.izracunaj_zki(racun)  # offline — print it on the receipt first
+odgovor = client.fiskaliziraj(racun, zki=zki)  # builds, signs, sends, verifies
+print(odgovor.jir)
+```
+
+Test your integration without the demo environment or a FINA certificate —
+the mock validates requests against the official XSD and signs its responses:
+
+```python
+from fiskalhr.testing import MockCis
+
+mock = MockCis()  # or MockCis(force_greske=("s004",))
+client = FiskalizacijaClient(cert, transport=mock.transport())
+odgovor = client.fiskaliziraj(racun)  # never leaves the process
 ```
 
 And from the terminal:
 
 ```bash
 fiskalhr cert info FISKAL_1.p12   # password prompted, never a CLI argument
-```
-
-### Target API (Phase 1, in progress)
-
-```python
-from fiskalhr import Certificate, Environment
-from fiskalhr.f1 import FiskalizacijaClient, Racun
-
-client = FiskalizacijaClient(cert, env=Environment.DEMO)
-odgovor = client.fiskaliziraj(racun)  # signs, sends, verifies response signature
-print(odgovor.jir)
 ```
 
 ## Scope

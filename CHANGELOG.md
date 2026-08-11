@@ -19,6 +19,20 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f1.client.FiskalizacijaClient` — the public F1 surface:
+  `izracunaj_zki` (offline), `fiskaliziraj` (build, sign, send, verify
+  response signature, parse; raises structured `CisError` on rejection),
+  and `echo`. Response-signature verification is on by default; disabling
+  requires the loudly named `allow_unverified_response=True`.
+- `fiskalhr.core.transport.SoapClient` — SOAP 1.1 over httpx with a TLS 1.2
+  floor and no way to disable certificate verification; retries apply only
+  to connection failures, never after a response was received.
+- `fiskalhr.testing.MockCis` — public in-process CIS mock that validates
+  requests against the official XSD, verifies request signatures, and signs
+  its responses with a throwaway certificate, so downstream integrations can
+  test the full loop without the demo environment or a FINA certificate.
+- `TransportError`; `CisError` now carries the full `greske` list.
+
 - `fiskalhr.f1.models` — Pydantic v2 models mirroring FiskalizacijaSchema
   v1.10 (`Racun`, `Porez`, `PorezOstalo`, `Naknada`, `BrojRacuna`,
   `NacinPlacanja`, `OznakaSlijednosti`, `RacunOdgovor`); frozen, unknown

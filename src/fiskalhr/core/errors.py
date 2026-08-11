@@ -14,6 +14,7 @@ __all__ = [
     "FiskalizacijaError",
     "InvalidOibError",
     "SignatureVerificationError",
+    "TransportError",
 ]
 
 
@@ -47,12 +48,33 @@ class InvalidOibError(FiskalizacijaError, ValueError):
     """A value is not a structurally valid OIB (length, digits, or checksum)."""
 
 
-class CisError(FiskalizacijaError):
-    """The CIS service returned an error response (``s001``-style codes).
+class TransportError(FiskalizacijaError):
+    """The service could not be reached or returned a transport-level failure.
 
-    The mapping of known codes to explanations is populated in Phase 1
-    alongside the F1 transport layer.
+    Raised for connection failures, timeouts, unexpected HTTP statuses, and
+    SOAP faults — anything below the fiscalization message layer. The caller
+    did NOT get a JIR; per the spec the receipt is issued without one and the
+    message must be resubmitted later.
     """
+
+
+class CisError(FiskalizacijaError):
+    """The CIS service reported errors in its response (``s001``-style codes).
+
+    ``code`` and ``message_hr`` carry the first reported error; ``greske``
+    carries every ``(sifra, poruka)`` pair from the response.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        message_hr: str | None = None,
+        greske: tuple[tuple[str, str], ...] = (),
+    ) -> None:
+        super().__init__(message, code=code, message_hr=message_hr)
+        self.greske = greske
 
 
 class SignatureVerificationError(FiskalizacijaError):

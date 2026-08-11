@@ -19,7 +19,7 @@ src/fiskalhr/
 │   ├── signing.py        # SignatureMethod (SHA-256/SHA-1 timeline)[done]
 │   ├── types.py          # OIB validation, shared value objects    [done]
 │   ├── xmldsig.py        # enveloped signature create + verify     [done]
-│   └── transport.py      # SOAP/HTTP client, TLS, retries          [Phase 1]
+│   └── transport.py      # SOAP 1.1 client, TLS 1.2+, retries      [done]
 │
 ├── f1/                   # Fiskalizacija 1.0 — B2C, CIS
 │   ├── zki.py            # offline ZKI computation                 [done]
@@ -27,7 +27,7 @@ src/fiskalhr/
 │   ├── error_codes.py    # s001–s013 table from the spec           [done]
 │   ├── models.py         # Racun, Porez, BrojRacuna, ... (Pydantic) [done]
 │   ├── messages.py       # request/response XML serialisation      [done]
-│   ├── client.py         # FiskalizacijaClient (public F1 surface) [Phase 1]
+│   ├── client.py         # FiskalizacijaClient (public F1 surface) [done]
 │   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
@@ -39,7 +39,7 @@ src/fiskalhr/
 │   └── schemas/
 │
 ├── testing/              # public test utilities for downstream users
-│   ├── mock_cis.py       #                                         [Phase 1]
+│   ├── mock_cis.py       # XSD-validating, response-signing mock   [done]
 │   └── fixtures.py
 │
 └── cli.py                # `fiskalhr` command                      [growing]

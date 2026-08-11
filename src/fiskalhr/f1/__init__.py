@@ -6,6 +6,7 @@ vendored files under ``schemas/``). Models, messages, and the client land in
 Phase 1.
 """
 
+from fiskalhr.f1.client import FiskalizacijaClient
 from fiskalhr.f1.error_codes import CIS_ERROR_MESSAGES
 from fiskalhr.f1.messages import build_racun_zahtjev, parse_racun_odgovor
 from fiskalhr.f1.models import (
@@ -28,6 +29,7 @@ __all__ = [
     "SERVICE_URLS",
     "ZKI_DATETIME_FORMAT",
     "BrojRacuna",
+    "FiskalizacijaClient",
     "Greska",
     "NacinPlacanja",
     "Naknada",
