@@ -23,6 +23,7 @@ No network, no FINA certificate, no demo environment.
 
 from __future__ import annotations
 
+import copy
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -44,6 +45,14 @@ from fiskalhr.f1.service import schema_dir
 __all__ = ["MockCis"]
 
 _DATUM_VRIJEME_FORMAT = "%d.%m.%YT%H:%M:%S"
+
+_RESPONSE_ROOTS = {
+    "RacunZahtjev": "RacunOdgovor",
+    "ProvjeraZahtjev": "ProvjeraOdgovor",
+    "NapojnicaZahtjev": "NapojnicaOdgovor",
+    "PromijeniNacPlacZahtjev": "PromijeniNacPlacOdgovor",
+    "PromijeniPodatkeRacunaZahtjev": "PromijeniPodatkeRacunaOdgovor",
+}
 
 
 def _make_service_certificate() -> Certificate:
@@ -124,8 +133,8 @@ class MockCis:
         tag = etree.QName(payload).localname
         if tag == "EchoRequest":
             return self._echo(payload)
-        if tag == "RacunZahtjev":
-            return self._racun(payload)
+        if tag in _RESPONSE_ROOTS:
+            return self._zahtjev(tag, payload)
         return self._fault(f"unsupported request {tag!r}")
 
     def _echo(self, payload: etree._Element) -> httpx.Response:
@@ -133,7 +142,7 @@ class MockCis:
         response.text = payload.text or ""
         return httpx.Response(200, content=wrap_soap(response))
 
-    def _racun(self, payload: etree._Element) -> httpx.Response:
+    def _zahtjev(self, tag: str, payload: etree._Element) -> httpx.Response:
         greske: list[tuple[str, str]] = []
 
         if not self._xsd.validate(payload):
@@ -147,31 +156,54 @@ class MockCis:
         for sifra in self.force_greske:
             greske.append((sifra, CIS_ERROR_MESSAGES.get(sifra, "")))
 
-        id_poruke = payload.findtext(f"{{{F73_NS}}}Zaglavlje/{{{F73_NS}}}IdPoruke") or ""
-        return httpx.Response(200, content=wrap_soap(self._odgovor(id_poruke, greske)))
+        return httpx.Response(200, content=wrap_soap(self._odgovor(tag, payload, greske)))
 
-    def _odgovor(self, id_poruke: str, greske: list[tuple[str, str]]) -> etree._Element:
+    def _odgovor(
+        self, tag: str, payload: etree._Element, greske: list[tuple[str, str]]
+    ) -> etree._Element:
+        response_name = _RESPONSE_ROOTS[tag]
         root = etree.Element(
-            f"{{{F73_NS}}}RacunOdgovor", attrib={"Id": "RacunOdgovor"}, nsmap={"tns": F73_NS}
+            f"{{{F73_NS}}}{response_name}", attrib={"Id": response_name}, nsmap={"tns": F73_NS}
         )
         zaglavlje = etree.SubElement(root, f"{{{F73_NS}}}Zaglavlje")
-        etree.SubElement(zaglavlje, f"{{{F73_NS}}}IdPoruke").text = id_poruke
+        etree.SubElement(zaglavlje, f"{{{F73_NS}}}IdPoruke").text = (
+            payload.findtext(f"{{{F73_NS}}}Zaglavlje/{{{F73_NS}}}IdPoruke") or ""
+        )
         etree.SubElement(zaglavlje, f"{{{F73_NS}}}DatumVrijeme").text = datetime.now(
             tz=None
         ).strftime(_DATUM_VRIJEME_FORMAT)
 
-        if greske:
-            greske_el = etree.SubElement(root, f"{{{F73_NS}}}Greske")
-            for sifra, poruka in greske:
-                greska_el = etree.SubElement(greske_el, f"{{{F73_NS}}}Greska")
-                etree.SubElement(greska_el, f"{{{F73_NS}}}SifraGreske").text = sifra
-                etree.SubElement(greska_el, f"{{{F73_NS}}}PorukaGreske").text = poruka
-        else:
+        if tag == "ProvjeraZahtjev":
+            # ProvjeraOdgovor must echo the received Racun (minOccurs=1).
+            racun = payload.find(f"{{{F73_NS}}}Racun")
+            if racun is not None:
+                root.append(copy.deepcopy(racun))
+            self._append_greske(root, greske)
+        elif greske:
+            self._append_greske(root, greske)
+        elif tag == "RacunZahtjev":
             etree.SubElement(root, f"{{{F73_NS}}}Jir").text = str(uuid.uuid4())
+        else:
+            # Success message; p005 is the spec's code for receipt-data
+            # change, the rest use a generic mock code.
+            sifra = "p005" if tag == "PromijeniPodatkeRacunaZahtjev" else "p001"
+            poruka_el = etree.SubElement(root, f"{{{F73_NS}}}PorukaOdgovora")
+            etree.SubElement(poruka_el, f"{{{F73_NS}}}SifraPoruke").text = sifra
+            etree.SubElement(poruka_el, f"{{{F73_NS}}}Poruka").text = "Uspješno zaprimljeno."
 
         if self.sign_responses:
             return etree.fromstring(sign_enveloped(root, self._service_cert))
         return root
+
+    @staticmethod
+    def _append_greske(root: etree._Element, greske: list[tuple[str, str]]) -> None:
+        if not greske:
+            return
+        greske_el = etree.SubElement(root, f"{{{F73_NS}}}Greske")
+        for sifra, poruka in greske:
+            greska_el = etree.SubElement(greske_el, f"{{{F73_NS}}}Greska")
+            etree.SubElement(greska_el, f"{{{F73_NS}}}SifraGreske").text = sifra
+            etree.SubElement(greska_el, f"{{{F73_NS}}}PorukaGreske").text = poruka
 
     def _fault(self, fault_string: str) -> httpx.Response:
         envelope = etree.Element(f"{{{SOAP_ENV_NS}}}Envelope", nsmap={"soapenv": SOAP_ENV_NS})

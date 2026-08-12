@@ -19,6 +19,16 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Follow-up F1 message types, completing the receipt lifecycle:
+  `fiskaliziraj_napojnicu` (tips), `promijeni_nacin_placanja`,
+  `promijeni_podatke_racuna` (payment-method / receiver-OIB changes, empty
+  OIB allowed per `OibPromjenaType`), and `provjeri` (receipt check,
+  demo-environment only — guarded, and its error list is returned rather
+  than raised). New models: `Napojnica`, `PorukaOdgovora`,
+  `PromjenaOdgovor`, `ProvjeraOdgovor`. `MockCis` answers all of them,
+  XSD-validating and signing as before. Radno-vrijeme methods (new in
+  schema v1.10) remain unimplemented for now.
+
 - `fiskalhr.f1.client.FiskalizacijaClient` — the public F1 surface:
   `izracunaj_zki` (offline), `fiskaliziraj` (build, sign, send, verify
   response signature, parse; raises structured `CisError` on rejection),

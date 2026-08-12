@@ -26,9 +26,13 @@ __all__ = [
     "Greska",
     "NacinPlacanja",
     "Naknada",
+    "Napojnica",
     "OznakaSlijednosti",
     "Porez",
     "PorezOstalo",
+    "PorukaOdgovora",
+    "PromjenaOdgovor",
+    "ProvjeraOdgovor",
     "Racun",
     "RacunOdgovor",
 ]
@@ -119,8 +123,22 @@ class Racun(_Model):
     """Receiver's OIB — mandatory for B2B cash/card receipts since 2026-01-01."""
 
 
+class Napojnica(_Model):
+    """``NapojnicaType`` — a tip reported for an already-fiscalized receipt."""
+
+    iznos: Decimal
+    nacin_placanja: NacinPlacanja
+
+
 class Greska(_Model):
     """``GreskaType`` — one server-reported error (code + Croatian message)."""
+
+    sifra: str
+    poruka: str
+
+
+class PorukaOdgovora(_Model):
+    """``PorukaOdgovoraType`` — a success message (``p005``-style code)."""
 
     sifra: str
     poruka: str
@@ -138,3 +156,38 @@ class RacunOdgovor(_Model):
     def ok(self) -> bool:
         """Whether fiscalization succeeded (a JIR was assigned)."""
         return self.jir is not None and not self.greske
+
+
+class PromjenaOdgovor(_Model):
+    """Parsed response to napojnica / payment-method / receipt-data messages.
+
+    Covers ``NapojnicaOdgovor``, ``PromijeniNacPlacOdgovor``, and
+    ``PromijeniPodatkeRacunaOdgovor`` — all share the same shape: a success
+    message (``PorukaOdgovora``) or a list of errors.
+    """
+
+    id_poruke: str | None
+    datum_vrijeme: datetime
+    poruka: PorukaOdgovora | None = None
+    greske: tuple[Greska, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        """Whether the change/report was accepted."""
+        return self.poruka is not None and not self.greske
+
+
+class ProvjeraOdgovor(_Model):
+    """Parsed ``ProvjeraOdgovor`` (demo-environment receipt check).
+
+    An empty ``greske`` means the receipt passed the check. The echoed
+    ``Racun`` element is not re-parsed; the error list is the payload.
+    """
+
+    id_poruke: str | None
+    datum_vrijeme: datetime
+    greske: tuple[Greska, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return not self.greske
