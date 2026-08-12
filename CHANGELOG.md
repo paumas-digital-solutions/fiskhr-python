@@ -19,6 +19,17 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f1.radno_vrijeme` — working-hours registration (schema v1.10):
+  models for the full schedule structure (`Redovno` with `PoDogovoru` /
+  `Jednokratno` / `Dvokratno` / `ParniNeparni`, exceptions, deletion), the
+  three message types (`prijavi`/`obrisi`/`dohvati_radno_vrijeme` on the
+  client), and parsing of fetched schedules back into models. `DanUTjednu`
+  1–7 are Monday–Sunday, 8 is a public holiday (praznik). The bulk
+  `PrijaviRadnoVrijemeZaPoslovnice` method is not implemented yet.
+- CLI: `fiskalhr zki` (offline ZKI computation, `--legacy-sha1` for the
+  transition period) and `fiskalhr echo` (CIS connectivity test,
+  `--env demo|production`).
+
 - Follow-up F1 message types, completing the receipt lifecycle:
   `fiskaliziraj_napojnicu` (tips), `promijeni_nacin_placanja`,
   `promijeni_podatke_racuna` (payment-method / receiver-OIB changes, empty

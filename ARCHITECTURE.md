@@ -28,6 +28,7 @@ src/fiskalhr/
 │   ├── models.py         # Racun, Porez, BrojRacuna, ... (Pydantic) [done]
 │   ├── messages.py       # request/response XML serialisation      [done]
 │   ├── client.py         # FiskalizacijaClient (public F1 surface) [done]
+│   ├── radno_vrijeme.py  # working-hours registration (v1.10)      [done]
 │   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
@@ -42,7 +43,7 @@ src/fiskalhr/
 │   ├── mock_cis.py       # XSD-validating, response-signing mock   [done]
 │   └── fixtures.py
 │
-└── cli.py                # `fiskalhr` command                      [growing]
+└── cli.py                # cert info, zki, echo                    [growing]
 ```
 
 Import rules, enforced by review (and later by lint):

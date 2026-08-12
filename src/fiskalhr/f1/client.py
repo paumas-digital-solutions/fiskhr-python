@@ -44,6 +44,16 @@ from fiskalhr.f1.models import (
     Racun,
     RacunOdgovor,
 )
+from fiskalhr.f1.radno_vrijeme import (
+    BrisanjeRadnogVremena,
+    RadnoVrijeme,
+    RadnoVrijemeOdgovor,
+    VrstaRadnogVremena,
+    build_dohvati_radno_vrijeme_zahtjev,
+    build_obrisi_radno_vrijeme_zahtjev,
+    build_prijavi_radno_vrijeme_zahtjev,
+    parse_dohvati_radno_vrijeme_odgovor,
+)
 from fiskalhr.f1.service import SERVICE_URLS
 from fiskalhr.f1.zki import izracunaj_zki
 
@@ -300,6 +310,87 @@ class FiskalizacijaClient:
             datum_vrijeme=datum_vrijeme,
         )
         return parse_provjera_odgovor(self._send_signed(zahtjev, "provjera"))
+
+    def prijavi_radno_vrijeme(
+        self,
+        oib: str,
+        ozn_pos_pr: str,
+        radno_vrijeme: RadnoVrijeme,
+        oib_oper: str,
+        *,
+        datum_vrijeme: datetime,
+        id_poruke: uuid.UUID | None = None,
+    ) -> PromjenaOdgovor:
+        """Register working hours for a business premises (schema v1.10).
+
+        No receipt and no ZKI are involved; the message is signed and sent.
+        ``datum_vrijeme`` is the message timestamp (local Croatian time).
+        """
+        zahtjev = build_prijavi_radno_vrijeme_zahtjev(
+            oib,
+            ozn_pos_pr,
+            radno_vrijeme,
+            oib_oper,
+            datum_vrijeme=datum_vrijeme,
+            id_poruke=id_poruke,
+        )
+        odgovor = parse_promjena_odgovor(
+            self._send_signed(zahtjev, "prijaviRadnoVrijeme"),
+            expected="PrijaviRadnoVrijemeOdgovor",
+        )
+        self._raise_on_greske(odgovor.greske)
+        return odgovor
+
+    def obrisi_radno_vrijeme(
+        self,
+        oib: str,
+        ozn_pos_pr: str,
+        brisanje: BrisanjeRadnogVremena,
+        oib_oper: str,
+        *,
+        datum_vrijeme: datetime,
+        id_poruke: uuid.UUID | None = None,
+    ) -> PromjenaOdgovor:
+        """Delete registered working hours by their dates."""
+        zahtjev = build_obrisi_radno_vrijeme_zahtjev(
+            oib,
+            ozn_pos_pr,
+            brisanje,
+            oib_oper,
+            datum_vrijeme=datum_vrijeme,
+            id_poruke=id_poruke,
+        )
+        odgovor = parse_promjena_odgovor(
+            self._send_signed(zahtjev, "obrisiRadnoVrijeme"),
+            expected="ObrisiRadnoVrijemeOdgovor",
+        )
+        self._raise_on_greske(odgovor.greske)
+        return odgovor
+
+    def dohvati_radno_vrijeme(
+        self,
+        oib: str,
+        ozn_pos_pr: str,
+        oib_oper: str,
+        *,
+        vrsta: VrstaRadnogVremena = VrstaRadnogVremena.SVE,
+        datum_vrijeme: datetime,
+        id_poruke: uuid.UUID | None = None,
+    ) -> RadnoVrijemeOdgovor:
+        """Fetch the currently registered working hours for a premises."""
+        zahtjev = build_dohvati_radno_vrijeme_zahtjev(
+            oib,
+            ozn_pos_pr,
+            vrsta,
+            oib_oper,
+            datum_vrijeme=datum_vrijeme,
+            id_poruke=id_poruke,
+        )
+        odgovor = parse_dohvati_radno_vrijeme_odgovor(
+            self._send_signed(zahtjev, "dohvatiRadnoVrijeme")
+        )
+        self._raise_on_greske(odgovor.greske)
+        return odgovor
 
     def echo(self, text: str = "ping") -> str:
         """Call the ``echo`` connectivity-test method and return the reply."""

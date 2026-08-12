@@ -8,7 +8,7 @@ official XSD and signs its responses.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -29,6 +29,12 @@ from fiskalhr.f1.models import (
     OznakaSlijednosti,
     Porez,
     Racun,
+)
+from fiskalhr.f1.radno_vrijeme import (
+    BrisanjeRadnogVremena,
+    PoDogovoru,
+    RadnoVrijeme,
+    Redovno,
 )
 from fiskalhr.testing import MockCis
 from tests.conftest import TEST_OIB, make_rsa_key, make_self_signed_cert
@@ -174,6 +180,37 @@ def test_provjera_reports_greske_without_raising(taxpayer_cert: Certificate, rac
 
     assert not odgovor.ok
     assert odgovor.greske[0].sifra == "s001"
+
+
+def test_radno_vrijeme_roundtrips(taxpayer_cert: Certificate) -> None:
+    mock = MockCis()
+    message_time = datetime(2026, 8, 12, 9, 0, 0)
+    radno_vrijeme = RadnoVrijeme(
+        redovno=(Redovno(datum_od=date(2026, 9, 1), raspored=PoDogovoru()),)
+    )
+    with _client(taxpayer_cert, mock) as client:
+        prijava = client.prijavi_radno_vrijeme(
+            TEST_OIB, "POSL1", radno_vrijeme, TEST_OIB, datum_vrijeme=message_time
+        )
+        assert prijava.ok
+
+        dohvat = client.dohvati_radno_vrijeme(
+            TEST_OIB, "POSL1", TEST_OIB, datum_vrijeme=message_time
+        )
+        assert dohvat.ok
+        assert dohvat.ozn_pos_pr == "POSL1"
+        assert len(dohvat.radno_vrijeme.redovno) == 1
+
+        brisanje = client.obrisi_radno_vrijeme(
+            TEST_OIB,
+            "POSL1",
+            BrisanjeRadnogVremena(redovno_od=(date(2026, 9, 1),)),
+            TEST_OIB,
+            datum_vrijeme=message_time,
+        )
+        assert brisanje.ok
+
+    assert len(mock.requests) == 3  # each XSD-validated and signature-verified
 
 
 def test_provjera_is_demo_only(taxpayer_cert: Certificate, racun: Racun) -> None:

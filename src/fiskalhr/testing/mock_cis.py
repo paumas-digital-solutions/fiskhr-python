@@ -52,6 +52,9 @@ _RESPONSE_ROOTS = {
     "NapojnicaZahtjev": "NapojnicaOdgovor",
     "PromijeniNacPlacZahtjev": "PromijeniNacPlacOdgovor",
     "PromijeniPodatkeRacunaZahtjev": "PromijeniPodatkeRacunaOdgovor",
+    "PrijaviRadnoVrijemeZahtjev": "PrijaviRadnoVrijemeOdgovor",
+    "ObrisiRadnoVrijemeZahtjev": "ObrisiRadnoVrijemeOdgovor",
+    "DohvatiRadnoVrijemeZahtjev": "DohvatiRadnoVrijemeOdgovor",
 }
 
 
@@ -178,6 +181,22 @@ class MockCis:
             racun = payload.find(f"{{{F73_NS}}}Racun")
             if racun is not None:
                 root.append(copy.deepcopy(racun))
+            self._append_greske(root, greske)
+        elif tag == "DohvatiRadnoVrijemeZahtjev":
+            # PoslovniProstor is mandatory in the response even on errors.
+            prostor = etree.SubElement(root, f"{{{F73_NS}}}PoslovniProstor")
+            etree.SubElement(prostor, f"{{{F73_NS}}}Oib").text = (
+                payload.findtext(f"{{{F73_NS}}}Oib") or ""
+            )
+            etree.SubElement(prostor, f"{{{F73_NS}}}OznPosPr").text = (
+                payload.findtext(f"{{{F73_NS}}}OznPosPr") or ""
+            )
+            rv = etree.SubElement(prostor, f"{{{F73_NS}}}RadnoVrijeme")
+            if not greske:
+                redovno = etree.SubElement(rv, f"{{{F73_NS}}}Redovno")
+                etree.SubElement(redovno, f"{{{F73_NS}}}DatumOd").text = "01.01.2026"
+                po_dogovoru = etree.SubElement(redovno, f"{{{F73_NS}}}PoDogovoru")
+                etree.SubElement(po_dogovoru, f"{{{F73_NS}}}RedovnoPoDogovoru").text = "DA"
             self._append_greske(root, greske)
         elif greske:
             self._append_greske(root, greske)
