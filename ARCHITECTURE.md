@@ -36,13 +36,14 @@ src/fiskalhr/
 │   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules [done]
 │   ├── validation/       # XSD + Schematron, structured reports    [done]
 │   ├── fiskalizacija/    # EvidentirajERacun (XAdES-B, direct)     [done]
-│   ├── izvjestavanje.py  # EvidentirajNaplatu, EvidentirajOdbijanje
+│   ├── izvjestavanje/    # EvidentirajNaplatu/Odbijanje, Ovlastenja [done]
 │   ├── posrednik/        # delivery adapters (base protocol + FINA)
 │   └── schemas/
 │
 ├── testing/              # public test utilities for downstream users
 │   ├── mock_cis.py       # F1 mock: XSD-validating, response-signing [done]
 │   ├── mock_efiskalizacija.py  # F2 reporting mock (XAdES)         [done]
+│   ├── mock_eizvjestavanje.py  # F2 payment/rejection mock         [done]
 │   └── fixtures.py
 │
 └── cli.py                # cert info, zki, echo                    [growing]

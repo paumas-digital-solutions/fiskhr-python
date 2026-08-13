@@ -32,7 +32,7 @@ from fiskalhr.f2.fiskalizacija.models import (
     EvidencijaOdgovor,
     VrstaERacuna,
 )
-from fiskalhr.f2.service import EFISKALIZACIJA_URLS
+from fiskalhr.f2.service import SERVICE_URLS
 from fiskalhr.f2.ubl.models import ERacun
 
 __all__ = ["EFiskalizacijaClient"]
@@ -45,7 +45,7 @@ class EFiskalizacijaClient:
         certificate: The taxpayer's application certificate (its DN must
             contain the OIB; demo certificate for `Environment.DEMO`).
         env: Target environment; selects the endpoint from
-            `fiskalhr.f2.service.EFISKALIZACIJA_URLS`.
+            `fiskalhr.f2.service.SERVICE_URLS`.
         timeout: Per-request timeout in seconds.
         retries: Extra attempts on connection errors/timeouts only; never
             after a response was received.
@@ -70,7 +70,7 @@ class EFiskalizacijaClient:
         self.env = env
         self.allow_unverified_response = allow_unverified_response
         self._soap = SoapClient(
-            EFISKALIZACIJA_URLS[env], timeout=timeout, retries=retries, transport=transport
+            SERVICE_URLS[env], timeout=timeout, retries=retries, transport=transport
         )
 
     def evidentiraj_izlazni(self, *racuni: ERacun | EvidencijaERacun) -> EvidencijaOdgovor:

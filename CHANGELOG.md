@@ -19,6 +19,17 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.izvjestavanje` — payment and rejection reporting:
+  `EIzvjestavanjeClient.evidentiraj_naplatu` (issuer reports collections;
+  `Naplata.za_eracun` fills the eRačun identifier from the UBL model and
+  defaults to paid-in-full), `evidentiraj_odbijanje` (recipient reports
+  rejections with the `N`/`U`/`O` reason codebook), and `ovlastenja` (which
+  OIBs the certificate holder may report for). Shares the endpoint and the
+  XAdES-B signature profile with eFiskalizacija; signed requests validate
+  against the vendored `eIzvjestavanjeSchema.xsd` in tests.
+  `fiskalhr.testing.MockEIzvjestavanje` covers all three operations.
+  `EvidentirajIsporukuZaKojuNijeIzdanERacun` is not implemented yet.
+
 - `fiskalhr.f2.fiskalizacija` — the F2 reporting leg (`EvidentirajERacun`):
   `EFiskalizacijaClient` reports outgoing/incoming eRačuni directly to the
   Tax Administration's eFiskalizacija service (no intermediary needed for

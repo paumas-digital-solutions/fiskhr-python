@@ -8,5 +8,6 @@ FINA certificate.
 
 from fiskalhr.testing.mock_cis import MockCis
 from fiskalhr.testing.mock_efiskalizacija import MockEFiskalizacija
+from fiskalhr.testing.mock_eizvjestavanje import MockEIzvjestavanje
 
-__all__ = ["MockCis", "MockEFiskalizacija"]
+__all__ = ["MockCis", "MockEFiskalizacija", "MockEIzvjestavanje"]

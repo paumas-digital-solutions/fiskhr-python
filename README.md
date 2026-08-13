@@ -170,9 +170,21 @@ odgovor = client.evidentiraj_izlazni(eracun.build())  # as the issuer
 print(odgovor.id_zahtjeva)  # server-assigned request UUID
 ```
 
-For offline testing there is `fiskalhr.testing.MockEFiskalizacija`, the F2
-counterpart of `MockCis`: it XSD-validates requests, verifies your XAdES
-signature, and answers with signed responses.
+Payments and rejections are reported the same way, referencing the invoice
+by its identifier (filled in from the model for you):
+
+```python
+from datetime import date
+
+from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient, Naplata
+
+izvj = EIzvjestavanjeClient(cert, env=Environment.DEMO)
+izvj.evidentiraj_naplatu(Naplata.za_eracun(eracun.build(), datum_naplate=date(2026, 9, 1)))
+```
+
+For offline testing there are `fiskalhr.testing.MockEFiskalizacija` and
+`MockEIzvjestavanje`, the F2 counterparts of `MockCis`: they XSD-validate
+requests, verify your XAdES signature, and answer with signed responses.
 
 ## Scope
 
