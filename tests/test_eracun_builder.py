@@ -134,6 +134,15 @@ def test_odobrenje_passes_full_validation() -> None:
     assert report.findings == (), [f"{f.rule}: {f.message}" for f in report.findings]
 
 
+@needs_saxon
+def test_predujam_passes_full_validation() -> None:
+    """An advance invoice (386) stays a UBL Invoice; KPD optional (HR-BR-25)."""
+    racun = _builder().broj("2026-44-P1-1").vrsta("386").build()
+    report = validate(etree.tostring(to_xml(racun)))
+    assert report.schematron_ran
+    assert report.findings == (), [f"{f.rule}: {f.message}" for f in report.findings]
+
+
 def test_kpd_required_for_regular_invoice_only() -> None:
     with pytest.raises(ValidationError, match="HR-BR-25"):
         _builder().stavka(naziv="Bez KPD", kolicina=1, cijena="1.00", pdv_stopa=25).build()
