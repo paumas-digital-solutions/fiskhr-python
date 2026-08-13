@@ -40,6 +40,7 @@ Fiskalizacija 2.0 technical documentation downloads.
 | `f2/PU-AplikacijskiOdgovor-2026-07-27-v1.1.pdf` | ApplicationResponse (prihvat/odbijanje) specification v1.1 (27.07.2026) | |
 | `f2/HR-UBL-Schematron-Uputa.pdf` | Instructions for the HR UBL Schematron | From `HRUBLSchematron_13032026-2.zip` |
 | `src/fiskalhr/f2/schemas/schematron/*.sch` | **HR CIUS/EXT Schematron rules 1.0.0** (main + codelists), `queryBinding="xslt2"` | Bundle dated 13.03.2026; requires an XSLT 2.0 engine |
+| `src/fiskalhr/f2/schemas/schematron/compiled/HR-CIUS-EXT-EN16931-UBL.xsl` | **Generated artifact**: the .sch compiled to an XSLT 2.0 validation stylesheet | Compiled 2026-08-13 with SchXslt 1.10.1 (Apache-2.0, `name.dmaus.schxslt:schxslt` from Maven Central) via `pipeline-for-svrl.xsl` under SaxonC-HE 13. Regenerate whenever the .sch changes and commit both together. |
 | `src/fiskalhr/f2/schemas/ubl/**` | UBL 2.1 XSD subset (Invoice + CreditNote maindocs, common) incl. `HRExtensionAggregateComponents-1.xsd` | As distributed by Porezna uprava (`UBL2.1 eRačun.zip`) |
 | `src/fiskalhr/f2/schemas/efiskalizacija/*` | eFiskalizacija XSD (17.12.2025) + WSDL (07.11.2025) | `xmldsig-core-schema.xsd` copied in from the F1 bundle — the zip references but does not ship it |
 | `src/fiskalhr/f2/schemas/eizvjestavanje/*` | eIzvještavanje XSD (08.02.2026) + WSDL | Same xmldsig note |
