@@ -9,6 +9,17 @@ targets (see `docs/specs/SOURCES.md`).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.0.1] - 2026-08-13
+
+First published release, claiming the `fiskhr` name on PyPI. Functionally
+complete for F1 and the direct (no-intermediary) F2 flows; validation
+against the demo environment is the v0.1.0 gate. Targets **F1 tech spec
+v2.7 (21.07.2026)**, **F1 schema/WSDL v1.10**, **HR CIUS 2025 +
+ext-2025** with **HR Schematron 1.0.0**, and the 2024 eFiskalizacija /
+eIzvještavanje service schemas.
+
 ### Changed
 
 - **ZKI now defaults to RSA-SHA256** per tech spec v2.7 (pseudocode ch. 12).
