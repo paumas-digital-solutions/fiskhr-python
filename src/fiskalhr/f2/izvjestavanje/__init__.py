@@ -6,12 +6,14 @@ After an eRačun is fiscalized, the issuer reports collections
 taxpayer may report for. Requests share the eFiskalizacija endpoint and the
 XAdES-B signature profile.
 
-``EvidentirajIsporukuZaKojuNijeIzdanERacun`` (deliveries without an eRačun)
-is defined by the vendored schema but not implemented yet.
+``EvidentirajIsporukuZaKojuNijeIzdanERacun`` reports invoices for
+deliveries where no eRačun was issued, reusing the same digest model as
+eFiskalizacija (`fiskalhr.f2.fiskalizacija.EvidencijaERacun`).
 """
 
 from fiskalhr.f2.izvjestavanje.client import EIzvjestavanjeClient
 from fiskalhr.f2.izvjestavanje.messages import (
+    build_evidentiraj_isporuku_zahtjev,
     build_evidentiraj_naplatu_zahtjev,
     build_evidentiraj_odbijanje_zahtjev,
     build_ovlastenja_zahtjev,
@@ -31,6 +33,7 @@ __all__ = [
     "Naplata",
     "Odbijanje",
     "RazlogOdbijanja",
+    "build_evidentiraj_isporuku_zahtjev",
     "build_evidentiraj_naplatu_zahtjev",
     "build_evidentiraj_odbijanje_zahtjev",
     "build_ovlastenja_zahtjev",

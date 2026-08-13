@@ -158,7 +158,9 @@ extra for that part).
 Credit notes are one call away — `.odobrenje("2026-42-P1-1", date(2026, 8, 13))`
 references the corrected invoice and switches the output to a UBL
 CreditNote, with the HR rule differences (optional KPD, no due date)
-handled for you.
+handled for you. Document-level discounts and charges
+(`.popust(...)` / `.trosak(...)`) join the VAT breakdown and totals per
+EN 16931 automatically.
 
 Reporting the invoice to the Tax Administration (eFiskalizacija) works
 straight from the same model — the reported digest is derived from it, and
@@ -200,7 +202,7 @@ requests, verify your XAdES signature, and answer with signed responses.
 | F1 | All CIS message types, SOAP transport, retry/timeout policy |
 | F2 documents | UBL 2.1 builder, HR CIUS 2025 + ext-2025 conformance, KPD fields |
 | F2 validation | XSD + Schematron with structured reports |
-| F2 messages | `EvidentirajERacun`, `EvidentirajNaplatu`, `EvidentirajOdbijanje` |
+| F2 messages | `EvidentirajERacun`, `EvidentirajNaplatu`, `EvidentirajOdbijanje`, `EvidentirajIsporukuZaKojuNijeIzdanERacun`, `OvlastenjaFiskalizacije` |
 | Testing tools | Mock CIS server, golden fixtures, demo smoke-test harness |
 | CLI | ZKI computation, validation, echo, cert inspection |
 

@@ -5,10 +5,10 @@ messages *without* the signature — the client (or the mock) appends the
 XAdES-B signature via `fiskalhr.core.xades.sign_xades_enveloped`.
 
 The response ``Odgovor`` structure is identical to eFiskalizacija's, so
-parsing reuses `fiskalhr.f2.fiskalizacija`'s response models.
-
-``EvidentirajIsporukuZaKojuNijeIzdanERacun`` (deliveries for which no
-eRačun was issued) is defined by the schema but not implemented yet.
+parsing reuses `fiskalhr.f2.fiskalizacija`'s response models — and the
+``Racun`` digest of ``EvidentirajIsporukuZaKojuNijeIzdanERacun`` is
+field-identical to eFiskalizacija's ``ERacun``, so it reuses the same
+`EvidencijaERacun` model and serialiser (only three element names differ).
 """
 
 from __future__ import annotations
@@ -18,12 +18,17 @@ from datetime import datetime
 
 from lxml import etree
 
-from fiskalhr.f2.fiskalizacija.messages import format_datum_vrijeme
-from fiskalhr.f2.fiskalizacija.models import EvidencijaGreska, EvidencijaOdgovor
+from fiskalhr.f2.fiskalizacija.messages import _eracun_element, format_datum_vrijeme
+from fiskalhr.f2.fiskalizacija.models import (
+    EvidencijaERacun,
+    EvidencijaGreska,
+    EvidencijaOdgovor,
+)
 from fiskalhr.f2.izvjestavanje.models import Naplata, Odbijanje
 
 __all__ = [
     "EIZVJ_NS",
+    "build_evidentiraj_isporuku_zahtjev",
     "build_evidentiraj_naplatu_zahtjev",
     "build_evidentiraj_odbijanje_zahtjev",
     "build_ovlastenja_zahtjev",
@@ -91,6 +96,41 @@ def build_evidentiraj_odbijanje_zahtjev(
         _el(o, "datumOdbijanja", odbijanje.datum_odbijanja.isoformat())
         _el(o, "vrstaRazlogaOdbijanja", odbijanje.vrsta_razloga.value)
         _el(o, "razlogOdbijanja", odbijanje.razlog)
+    return root
+
+
+def build_evidentiraj_isporuku_zahtjev(
+    racuni: Sequence[EvidencijaERacun],
+    *,
+    id_zahtjeva: str,
+    datum_vrijeme_slanja: datetime,
+) -> etree._Element:
+    """Build an (unsigned) ``EvidentirajIsporukuZaKojuNijeIzdanERacunZahtjev``.
+
+    Reports 1-100 invoices for deliveries where no eRačun was issued (e.g.
+    the buyer is not addressable); its ``Zaglavlje`` carries the fixed
+    ``vrstaRacuna`` value ``IR``.
+    """
+    if not 1 <= len(racuni) <= 100:
+        raise ValueError(f"a message carries 1-100 racuni, got {len(racuni)}")
+    root = etree.Element(
+        f"{{{EIZVJ_NS}}}EvidentirajIsporukuZaKojuNijeIzdanERacunZahtjev", nsmap=_NSMAP
+    )
+    root.set(f"{{{EIZVJ_NS}}}id", id_zahtjeva)
+    zaglavlje = etree.SubElement(root, f"{{{EIZVJ_NS}}}Zaglavlje")
+    _el(zaglavlje, "datumVrijemeSlanja", format_datum_vrijeme(datum_vrijeme_slanja))
+    _el(zaglavlje, "vrstaRacuna", "IR")
+    for racun in racuni:
+        root.append(
+            _eracun_element(
+                racun,
+                EIZVJ_NS,
+                root_name="Racun",
+                valuta_name="valutaRacuna",
+                prethodni_name="PrethodniRacun",
+                stavka_name="StavkaRacuna",
+            )
+        )
     return root
 
 

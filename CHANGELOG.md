@@ -19,6 +19,17 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Document-level allowances and charges (BG-20/21): `ERacunBuilder.popust()`
+  and `.trosak()` join the VAT breakdown per EN 16931 — each group's taxable
+  base is its lines minus its allowances plus its charges, and the totals
+  carry `AllowanceTotalAmount`/`ChargeTotalAmount` with
+  `TaxExclusiveAmount` = lines − allowances + charges (BT-109). Exempt (E)
+  or out-of-scope (O) charges get the HR category mark and exemption reason
+  (HR-BR-11/13), trigger the `HRFISK20Data` extension (HR-BR-26/30), and
+  the extension splits out-of-scope amounts into `OutOfScopeOfVATAmount`
+  exactly like the official examples. The eFiskalizacija digest reports
+  them as `DokumentPopust`/`DokumentTrosak` with the matching totals.
+
 - Credit notes (odobrenje, UNCL 1001 type 381): `ERacunBuilder.odobrenje()`
   marks the document and references the corrected invoice; type 381
   serialises as a UBL **CreditNote** (`CreditNoteTypeCode`,
@@ -39,8 +50,11 @@ targets (see `docs/specs/SOURCES.md`).
   OIBs the certificate holder may report for). Shares the endpoint and the
   XAdES-B signature profile with eFiskalizacija; signed requests validate
   against the vendored `eIzvjestavanjeSchema.xsd` in tests.
-  `fiskalhr.testing.MockEIzvjestavanje` covers all three operations.
-  `EvidentirajIsporukuZaKojuNijeIzdanERacun` is not implemented yet.
+  `fiskalhr.testing.MockEIzvjestavanje` covers all the operations,
+  including `evidentiraj_isporuku` — `EvidentirajIsporukuZaKojuNijeIzdanERacun`
+  reports invoices for deliveries where no eRačun was issued (fixed
+  ``vrstaRacuna`` ``IR``), reusing the same `EvidencijaERacun` digest as
+  eFiskalizacija (the schema types are field-identical).
 
 - `fiskalhr.f2.fiskalizacija` — the F2 reporting leg (`EvidentirajERacun`):
   `EFiskalizacijaClient` reports outgoing/incoming eRačuni directly to the
@@ -102,7 +116,9 @@ targets (see `docs/specs/SOURCES.md`).
   three message types (`prijavi`/`obrisi`/`dohvati_radno_vrijeme` on the
   client), and parsing of fetched schedules back into models. `DanUTjednu`
   1–7 are Monday–Sunday, 8 is a public holiday (praznik). The bulk
-  `PrijaviRadnoVrijemeZaPoslovnice` method is not implemented yet.
+  `prijavi_radno_vrijeme_za_poslovnice` method registers hours for up to
+  100 premises in one call, with per-premises outcomes
+  (`PoslovniceOdgovor`); `MockCis` answers it like the rest.
 - CLI: `fiskalhr zki` (offline ZKI computation, `--legacy-sha1` for the
   transition period) and `fiskalhr echo` (CIS connectivity test,
   `--env demo|production`).
@@ -114,8 +130,7 @@ targets (see `docs/specs/SOURCES.md`).
   demo-environment only — guarded, and its error list is returned rather
   than raised). New models: `Napojnica`, `PorukaOdgovora`,
   `PromjenaOdgovor`, `ProvjeraOdgovor`. `MockCis` answers all of them,
-  XSD-validating and signing as before. Radno-vrijeme methods (new in
-  schema v1.10) remain unimplemented for now.
+  XSD-validating and signing as before.
 
 - `fiskalhr.f1.client.FiskalizacijaClient` — the public F1 surface:
   `izracunaj_zki` (offline), `fiskaliziraj` (build, sign, send, verify

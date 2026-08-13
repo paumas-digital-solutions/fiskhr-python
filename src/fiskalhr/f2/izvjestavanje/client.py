@@ -22,8 +22,9 @@ from fiskalhr.core.environment import Environment
 from fiskalhr.core.errors import CisError
 from fiskalhr.core.transport import SoapClient
 from fiskalhr.core.xades import sign_xades_enveloped, verify_xades_enveloped
-from fiskalhr.f2.fiskalizacija.models import EvidencijaOdgovor
+from fiskalhr.f2.fiskalizacija.models import EvidencijaERacun, EvidencijaOdgovor
 from fiskalhr.f2.izvjestavanje.messages import (
+    build_evidentiraj_isporuku_zahtjev,
     build_evidentiraj_naplatu_zahtjev,
     build_evidentiraj_odbijanje_zahtjev,
     build_ovlastenja_zahtjev,
@@ -32,6 +33,7 @@ from fiskalhr.f2.izvjestavanje.messages import (
 )
 from fiskalhr.f2.izvjestavanje.models import Naplata, Odbijanje
 from fiskalhr.f2.service import SERVICE_URLS
+from fiskalhr.f2.ubl.models import ERacun
 
 __all__ = ["EIzvjestavanjeClient"]
 
@@ -87,6 +89,25 @@ class EIzvjestavanjeClient:
         """
         zahtjev = build_evidentiraj_odbijanje_zahtjev(
             odbijanja,
+            id_zahtjeva=str(uuid.uuid4()),
+            datum_vrijeme_slanja=datetime.now(),
+        )
+        return self._send(zahtjev)
+
+    def evidentiraj_isporuku(self, *racuni: ERacun | EvidencijaERacun) -> EvidencijaOdgovor:
+        """Report 1-100 invoices for deliveries with no eRačun issued.
+
+        Accepts `fiskalhr.f2.ubl.ERacun` models (converted via
+        `EvidencijaERacun.from_eracuna`) or pre-built digests.
+
+        Raises `CisError` on rejection (``S0xx`` code attached).
+        """
+        evidencije = tuple(
+            r if isinstance(r, EvidencijaERacun) else EvidencijaERacun.from_eracuna(r)
+            for r in racuni
+        )
+        zahtjev = build_evidentiraj_isporuku_zahtjev(
+            evidencije,
             id_zahtjeva=str(uuid.uuid4()),
             datum_vrijeme_slanja=datetime.now(),
         )

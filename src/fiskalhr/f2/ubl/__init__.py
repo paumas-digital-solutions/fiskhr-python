@@ -13,9 +13,11 @@ from fiskalhr.f2.ubl.models import (
     ERacun,
     KategorijaPdv,
     Operater,
+    Popust,
     PrethodniRacun,
     Stavka,
     Stranka,
+    Trosak,
 )
 from fiskalhr.f2.ubl.xml import to_xml
 
@@ -26,8 +28,10 @@ __all__ = [
     "ERacunBuilder",
     "KategorijaPdv",
     "Operater",
+    "Popust",
     "PrethodniRacun",
     "Stavka",
     "Stranka",
+    "Trosak",
     "to_xml",
 ]

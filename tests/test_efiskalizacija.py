@@ -217,6 +217,31 @@ def test_client_rejects_unsigned_response(certificate: Certificate) -> None:
         client.evidentiraj_izlazni(_eracun_builder().build())
 
 
+def test_digest_with_popust_i_trosak_validates(
+    xsd: etree.XMLSchema, certificate: Certificate
+) -> None:
+    racun = (
+        _eracun_builder()
+        .popust(iznos="10.00", razlog="Rabat", pdv_stopa=25)
+        .trosak(iznos="5.00", razlog="Dostava", pdv_stopa=25)
+        .build()
+    )
+    evidencija = EvidencijaERacun.from_eracuna(racun)
+    assert evidencija.ukupan_iznos.popust == Decimal("10.00")
+    assert evidencija.ukupan_iznos.trosak == Decimal("5.00")
+    # lines 150; S25 base 100-10+5=95 -> 23.75 PDV; E base 50
+    assert evidencija.ukupan_iznos.iznos_bez_pdv == Decimal("145.00")
+    assert evidencija.ukupan_iznos.iznos_s_pdv == Decimal("168.75")
+
+    zahtjev = build_evidentiraj_eracun_zahtjev(
+        (evidencija,),
+        vrsta=VrstaERacuna.IZLAZNI,
+        id_zahtjeva="test-request-6",
+        datum_vrijeme_slanja=SLANJE,
+    )
+    assert xsd.validate(sign_xades_enveloped(zahtjev, certificate)), xsd.error_log
+
+
 def test_client_soap_fault_raises_transport_error(certificate: Certificate) -> None:
     mock = MockEFiskalizacija(soap_fault="planned outage")
     client = EFiskalizacijaClient(certificate, transport=mock.transport())

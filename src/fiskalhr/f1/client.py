@@ -46,13 +46,17 @@ from fiskalhr.f1.models import (
 )
 from fiskalhr.f1.radno_vrijeme import (
     BrisanjeRadnogVremena,
+    Poslovnica,
+    PoslovniceOdgovor,
     RadnoVrijeme,
     RadnoVrijemeOdgovor,
     VrstaRadnogVremena,
     build_dohvati_radno_vrijeme_zahtjev,
     build_obrisi_radno_vrijeme_zahtjev,
+    build_prijavi_radno_vrijeme_za_poslovnice_zahtjev,
     build_prijavi_radno_vrijeme_zahtjev,
     parse_dohvati_radno_vrijeme_odgovor,
+    parse_prijavi_radno_vrijeme_za_poslovnice_odgovor,
 )
 from fiskalhr.f1.service import SERVICE_URLS
 from fiskalhr.f1.zki import izracunaj_zki
@@ -337,6 +341,35 @@ class FiskalizacijaClient:
         odgovor = parse_promjena_odgovor(
             self._send_signed(zahtjev, "prijaviRadnoVrijeme"),
             expected="PrijaviRadnoVrijemeOdgovor",
+        )
+        self._raise_on_greske(odgovor.greske)
+        return odgovor
+
+    def prijavi_radno_vrijeme_za_poslovnice(
+        self,
+        oib: str,
+        poslovnice: tuple[Poslovnica, ...] | list[Poslovnica],
+        oib_oper: str,
+        *,
+        datum_vrijeme: datetime,
+        id_poruke: uuid.UUID | None = None,
+    ) -> PoslovniceOdgovor:
+        """Register working hours for up to 100 premises in one call.
+
+        Raises `CisError` only when the whole message is rejected; the
+        service can accept some premises and reject others — check
+        ``odgovor.poslovnice`` (and ``odgovor.ok``) for per-premises
+        outcomes.
+        """
+        zahtjev = build_prijavi_radno_vrijeme_za_poslovnice_zahtjev(
+            oib,
+            poslovnice,
+            oib_oper,
+            datum_vrijeme=datum_vrijeme,
+            id_poruke=id_poruke,
+        )
+        odgovor = parse_prijavi_radno_vrijeme_za_poslovnice_odgovor(
+            self._send_signed(zahtjev, "prijaviRadnoVrijemeZaPoslovnice")
         )
         self._raise_on_greske(odgovor.greske)
         return odgovor

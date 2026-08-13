@@ -19,7 +19,10 @@ from fiskalhr.f2.ubl.models import (
     OIB_ENDPOINT_SCHEME,
     ERacun,
     KategorijaPdv,
+    Popust,
+    Stavka,
     Stranka,
+    Trosak,
     hr_oznaka,
 )
 
@@ -103,22 +106,27 @@ def _hrfisk20_extension(extensions: etree._Element, racun: ERacun) -> None:
         if oznaka is not None:
             _cbc(category, "Name", oznaka)
         _cbc(category, "Percent", _broj(stopa))
-        for reason in sorted(
-            {
-                s.razlog_oslobodjenja
-                for s in racun.stavke
-                if (s.kategorija, s.pdv_stopa) == (kategorija, stopa) and s.razlog_oslobodjenja
-            }
-        ):
+        for reason in racun.razlozi_oslobodjenja(kategorija, stopa):
             _cbc(category, "TaxExemptionReason", reason)
         scheme = etree.SubElement(category, f"{{{HREXTAC}}}HRTaxScheme")
         _cbc(scheme, "ID", "VAT")
 
+    # The official examples split the HR totals: TaxExclusiveAmount without
+    # the out-of-scope (O) portion, which goes to OutOfScopeOfVATAmount.
     monetary = etree.SubElement(data, f"{{{HREXTAC}}}HRLegalMonetaryTotal")
-    _cbc(monetary, "TaxExclusiveAmount", _iznos(racun.ukupno_neto), currencyID=racun.valuta)
     out_of_scope = sum(
-        (s.neto for s in racun.stavke if s.kategorija is KategorijaPdv.NE_PODLIJEZE),
+        (
+            osnovica
+            for (kategorija, _), osnovica in racun.grupe_pdv.items()
+            if kategorija is KategorijaPdv.NE_PODLIJEZE
+        ),
         Decimal("0.00"),
+    )
+    _cbc(
+        monetary,
+        "TaxExclusiveAmount",
+        _iznos(racun.osnovica - out_of_scope),
+        currencyID=racun.valuta,
     )
     amount = etree.SubElement(monetary, f"{{{HREXTAC}}}OutOfScopeOfVATAmount")
     amount.set("currencyID", racun.valuta)
@@ -162,7 +170,12 @@ def to_xml(racun: ERacun) -> etree._Element:
     root = etree.Element(f"{{{root_ns}}}{root_name}", nsmap=_nsmap(root_ns))
     extensions = etree.SubElement(root, f"{{{EXT}}}UBLExtensions")
     _signature_slot(extensions)
-    if any(s.kategorija in _HR_EXTENSION_CATEGORIES for s in racun.stavke):
+    dijelovi: tuple[Stavka | Popust | Trosak, ...] = (
+        *racun.stavke,
+        *racun.popusti,
+        *racun.troskovi,
+    )
+    if any(dio.kategorija in _HR_EXTENSION_CATEGORIES for dio in dijelovi):
         _hrfisk20_extension(extensions, racun)
 
     _cbc(root, "CustomizationID", CUSTOMIZATION_ID)
@@ -205,6 +218,26 @@ def to_xml(racun: ERacun) -> etree._Element:
         account = _cac(payment, "PayeeFinancialAccount")
         _cbc(account, "ID", racun.iban)
 
+    for indikator, dijelovi in (("false", racun.popusti), ("true", racun.troskovi)):
+        for dio in dijelovi:
+            allowance = _cac(root, "AllowanceCharge")
+            _cbc(allowance, "ChargeIndicator", indikator)
+            if dio.razlog_kod is not None:
+                _cbc(allowance, "AllowanceChargeReasonCode", dio.razlog_kod)
+            _cbc(allowance, "AllowanceChargeReason", dio.razlog)
+            _cbc(allowance, "Amount", _iznos(dio.iznos), currencyID=racun.valuta)
+            category = _cac(allowance, "TaxCategory")
+            _cbc(category, "ID", dio.kategorija.value)
+            oznaka = hr_oznaka(dio.kategorija, dio.pdv_stopa)
+            if oznaka is not None:
+                _cbc(category, "Name", oznaka)  # HR-BR-11 for E/O charges
+            _cbc(category, "Percent", _broj(dio.pdv_stopa))
+            if dio.kategorija in _HR_EXTENSION_CATEGORIES or (
+                dio.kategorija is KategorijaPdv.PRIJENOS_POREZNE_OBVEZE
+            ):
+                _cbc(category, "TaxExemptionReason", dio.razlog)  # HR-BR-13
+            _cbc(_cac(category, "TaxScheme"), "ID", "VAT")
+
     tax_total = _cac(root, "TaxTotal")
     _cbc(tax_total, "TaxAmount", _iznos(racun.ukupno_pdv), currencyID=racun.valuta)
     for (kategorija, stopa), osnovica in racun.grupe_pdv.items():
@@ -215,19 +248,18 @@ def to_xml(racun: ERacun) -> etree._Element:
         category = _cac(subtotal, "TaxCategory")
         _cbc(category, "ID", kategorija.value)
         _cbc(category, "Percent", _broj(stopa))
-        reasons = {
-            s.razlog_oslobodjenja
-            for s in racun.stavke
-            if (s.kategorija, s.pdv_stopa) == (kategorija, stopa) and s.razlog_oslobodjenja
-        }
-        for reason in sorted(reasons):
+        for reason in racun.razlozi_oslobodjenja(kategorija, stopa):
             _cbc(category, "TaxExemptionReason", reason)
         _cbc(_cac(category, "TaxScheme"), "ID", "VAT")
 
     total = _cac(root, "LegalMonetaryTotal")
     _cbc(total, "LineExtensionAmount", _iznos(racun.ukupno_neto), currencyID=racun.valuta)
-    _cbc(total, "TaxExclusiveAmount", _iznos(racun.ukupno_neto), currencyID=racun.valuta)
+    _cbc(total, "TaxExclusiveAmount", _iznos(racun.osnovica), currencyID=racun.valuta)
     _cbc(total, "TaxInclusiveAmount", _iznos(racun.ukupno_s_pdv), currencyID=racun.valuta)
+    if racun.popusti:
+        _cbc(total, "AllowanceTotalAmount", _iznos(racun.ukupno_popust), currencyID=racun.valuta)
+    if racun.troskovi:
+        _cbc(total, "ChargeTotalAmount", _iznos(racun.ukupno_trosak), currencyID=racun.valuta)
     _cbc(total, "PayableAmount", _iznos(racun.ukupno_s_pdv), currencyID=racun.valuta)
 
     line_name = "CreditNoteLine" if odobrenje else "InvoiceLine"

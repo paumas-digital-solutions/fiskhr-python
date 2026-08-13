@@ -15,12 +15,14 @@ from lxml import etree
 from fiskalhr.core.certs import Certificate
 from fiskalhr.core.errors import CisError
 from fiskalhr.core.xades import sign_xades_enveloped
+from fiskalhr.f2.fiskalizacija import EvidencijaERacun
 from fiskalhr.f2.izvjestavanje import (
     EIzvjestavanjeClient,
     NacinPlacanjaNaplate,
     Naplata,
     Odbijanje,
     RazlogOdbijanja,
+    build_evidentiraj_isporuku_zahtjev,
     build_evidentiraj_naplatu_zahtjev,
     build_evidentiraj_odbijanje_zahtjev,
     build_ovlastenja_zahtjev,
@@ -135,6 +137,30 @@ def test_client_raises_cis_error_on_rejection(certificate: Certificate) -> None:
     with pytest.raises(CisError) as excinfo:
         client.evidentiraj_odbijanje(odbijanje)
     assert excinfo.value.code == "S009"
+
+
+def test_signed_isporuka_zahtjev_validates(xsd: etree.XMLSchema, certificate: Certificate) -> None:
+    zahtjev = build_evidentiraj_isporuku_zahtjev(
+        (EvidencijaERacun.from_eracuna(_eracun()),),
+        id_zahtjeva="req-4",
+        datum_vrijeme_slanja=SLANJE,
+    )
+    zaglavlje = zahtjev.find(
+        "e:Zaglavlje/e:vrstaRacuna",
+        namespaces={"e": "http://www.porezna-uprava.gov.hr/fin/2024/types/eIzvjestavanje"},
+    )
+    assert zaglavlje is not None
+    assert zaglavlje.text == "IR"
+    assert xsd.validate(sign_xades_enveloped(zahtjev, certificate)), xsd.error_log
+
+
+def test_client_reports_isporuka_end_to_end(certificate: Certificate) -> None:
+    mock = MockEIzvjestavanje()
+    client = EIzvjestavanjeClient(certificate, transport=mock.transport())
+
+    odgovor = client.evidentiraj_isporuku(_eracun())
+
+    assert odgovor.prihvacen
 
 
 def test_client_fetches_ovlastenja(certificate: Certificate) -> None:

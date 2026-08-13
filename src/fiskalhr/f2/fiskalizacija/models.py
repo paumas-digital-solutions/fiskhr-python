@@ -26,6 +26,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from fiskalhr.f2.ubl.models import ERacun, KategorijaPdv, Oib, hr_oznaka
 
 __all__ = [
+    "DokumentPopust",
+    "DokumentTrosak",
     "DokumentUkupanIznos",
     "EvidencijaERacun",
     "EvidencijaGreska",
@@ -122,6 +124,34 @@ class RaspodjelaPdv(_Model):
     """HR VAT category mark (HR-BT-22), e.g. ``HR:PDV25`` / ``HR:E``."""
 
 
+class DokumentPopust(_Model):
+    """One reported document-level allowance (BG-20)."""
+
+    iznos: Decimal
+    """Allowance amount without PDV (BT-92)."""
+    kategorija: KategorijaPdv
+    stopa: Decimal | None = None
+    razlog: str | None = Field(default=None, max_length=1024)
+    """Reason text (BT-97)."""
+    razlog_kod: str | None = None
+    """Reason code (BT-98, UNCL 5189 — the schema enumerates the subset)."""
+
+
+class DokumentTrosak(_Model):
+    """One reported document-level charge (BG-21)."""
+
+    iznos: Decimal
+    """Charge amount without PDV (BT-99)."""
+    kategorija: KategorijaPdv
+    hr_oznaka: str | None = None
+    """HR category mark of the charge (HR-BT-6)."""
+    stopa: Decimal | None = None
+    razlog_oslobodjenja: str | None = Field(default=None, max_length=1024)
+    """Exemption reason text (HR-BT-7)."""
+    razlog_oslobodjenja_kod: str | None = None
+    """Exemption reason code (HR-BT-8, VATEX)."""
+
+
 class StavkaEvidencije(_Model):
     """One reported invoice line (mirrors ``StavkaERacuna``)."""
 
@@ -167,6 +197,8 @@ class EvidencijaERacun(_Model):
     prijenosi_sredstava: tuple[PrijenosSredstava, ...] = ()
     ukupan_iznos: DokumentUkupanIznos
     raspodjele_pdv: tuple[RaspodjelaPdv, ...] = Field(min_length=1)
+    popusti: tuple[DokumentPopust, ...] = ()
+    troskovi: tuple[DokumentTrosak, ...] = ()
     stavke: tuple[StavkaEvidencije, ...] = Field(min_length=1)
     indikator_kopije: bool = False
 
@@ -181,13 +213,7 @@ class EvidencijaERacun(_Model):
         """
         raspodjele = []
         for (kategorija, stopa), osnovica in racun.grupe_pdv.items():
-            reasons = sorted(
-                {
-                    s.razlog_oslobodjenja
-                    for s in racun.stavke
-                    if (s.kategorija, s.pdv_stopa) == (kategorija, stopa) and s.razlog_oslobodjenja
-                }
-            )
+            reasons = racun.razlozi_oslobodjenja(kategorija, stopa)
             raspodjele.append(
                 RaspodjelaPdv(
                     kategorija=kategorija,
@@ -236,12 +262,33 @@ class EvidencijaERacun(_Model):
             ),
             ukupan_iznos=DokumentUkupanIznos(
                 neto=racun.ukupno_neto,
-                iznos_bez_pdv=racun.ukupno_neto,
+                popust=racun.ukupno_popust if racun.popusti else None,
+                trosak=racun.ukupno_trosak if racun.troskovi else None,
+                iznos_bez_pdv=racun.osnovica,
                 pdv=racun.ukupno_pdv,
                 iznos_s_pdv=racun.ukupno_s_pdv,
                 iznos_koji_dospijeva=racun.ukupno_s_pdv,
             ),
             raspodjele_pdv=tuple(raspodjele),
+            popusti=tuple(
+                DokumentPopust(
+                    iznos=p.iznos,
+                    kategorija=p.kategorija,
+                    stopa=p.pdv_stopa,
+                    razlog=p.razlog,
+                )
+                for p in racun.popusti
+            ),
+            troskovi=tuple(
+                DokumentTrosak(
+                    iznos=t.iznos,
+                    kategorija=t.kategorija,
+                    hr_oznaka=hr_oznaka(t.kategorija, t.pdv_stopa),
+                    stopa=t.pdv_stopa,
+                    razlog_oslobodjenja=t.razlog,
+                )
+                for t in racun.troskovi
+            ),
             stavke=stavke,
         )
 

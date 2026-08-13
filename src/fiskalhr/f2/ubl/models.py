@@ -30,9 +30,11 @@ __all__ = [
     "ERacun",
     "KategorijaPdv",
     "Operater",
+    "Popust",
     "PrethodniRacun",
     "Stavka",
     "Stranka",
+    "Trosak",
     "hr_oznaka",
 ]
 
@@ -145,6 +147,54 @@ class PrethodniRacun(_Model):
     """Preceding invoice issue date (BT-26)."""
 
 
+def _provjeri_kategoriju(kategorija: KategorijaPdv, stopa: Decimal, razlog: str | None) -> None:
+    """The category/rate/reason consistency the HR rules demand, shared by
+    lines (BG-25) and document-level allowances/charges (BG-20/21)."""
+    if kategorija is KategorijaPdv.STANDARDNA:
+        if stopa <= 0:
+            raise ValueError("kategorija S requires pdv_stopa > 0 (HR-BR-S-10)")
+    elif stopa != 0:
+        raise ValueError(f"kategorija {kategorija.value} requires pdv_stopa == 0")
+    exempt_like = (
+        KategorijaPdv.OSLOBODJENO,
+        KategorijaPdv.PRIJENOS_POREZNE_OBVEZE,
+        KategorijaPdv.NE_PODLIJEZE,
+    )
+    if kategorija in exempt_like and not razlog:
+        raise ValueError(
+            f"kategorija {kategorija.value} requires razlog_oslobodjenja "
+            "(HR-BR-16/HR-BR-36, HR-BR-13 for charges)"
+        )
+
+
+class _PopustTrosak(_Model):
+    iznos: Decimal
+    """Amount without PDV (BT-92 / BT-99)."""
+    razlog: str = Field(min_length=1, max_length=1024)
+    """Reason text (BT-97 / BT-104) — mandatory (EN BR-33/BR-38); doubles
+    as the exemption reason for E/AE/O categories (HR-BR-13)."""
+    kategorija: KategorijaPdv = KategorijaPdv.STANDARDNA
+    pdv_stopa: Decimal = Decimal("0")
+    razlog_kod: str | None = None
+    """Reason code (BT-98 UNCL 5189 for allowances / BT-105 UNTDID 7161
+    for charges)."""
+
+    @model_validator(mode="after")
+    def _consistent(self) -> _PopustTrosak:
+        razlog: str | None = self.razlog
+        _provjeri_kategoriju(self.kategorija, self.pdv_stopa, razlog)
+        return self
+
+
+class Popust(_PopustTrosak):
+    """A document-level allowance (BG-20), e.g. an order-level discount."""
+
+
+class Trosak(_PopustTrosak):
+    """A document-level charge (BG-21), e.g. shipping. E/O charges carry
+    the HR category mark and exemption reason (HR-BR-11/13)."""
+
+
 class Stavka(_Model):
     """One invoice line (BG-25).
 
@@ -169,21 +219,7 @@ class Stavka(_Model):
 
     @model_validator(mode="after")
     def _consistent(self) -> Stavka:
-        if self.kategorija is KategorijaPdv.STANDARDNA:
-            if self.pdv_stopa <= 0:
-                raise ValueError("kategorija S requires pdv_stopa > 0 (HR-BR-S-10)")
-        elif self.pdv_stopa != 0:
-            raise ValueError(f"kategorija {self.kategorija.value} requires pdv_stopa == 0")
-        exempt_like = (
-            KategorijaPdv.OSLOBODJENO,
-            KategorijaPdv.PRIJENOS_POREZNE_OBVEZE,
-            KategorijaPdv.NE_PODLIJEZE,
-        )
-        if self.kategorija in exempt_like and not self.razlog_oslobodjenja:
-            raise ValueError(
-                f"kategorija {self.kategorija.value} requires razlog_oslobodjenja "
-                "(HR-BR-16/HR-BR-36)"
-            )
+        _provjeri_kategoriju(self.kategorija, self.pdv_stopa, self.razlog_oslobodjenja)
         return self
 
     @property
@@ -224,6 +260,10 @@ class ERacun(_Model):
     (odobrenje — serialised as a UBL CreditNote), 386 advance invoice."""
     prethodni_racuni: tuple[PrethodniRacun, ...] = ()
     """Preceding-invoice references (BG-3, ``BillingReference``)."""
+    popusti: tuple[Popust, ...] = ()
+    """Document-level allowances (BG-20)."""
+    troskovi: tuple[Trosak, ...] = ()
+    """Document-level charges (BG-21)."""
 
     @property
     def je_odobrenje(self) -> bool:
@@ -256,17 +296,59 @@ class ERacun(_Model):
 
     @property
     def grupe_pdv(self) -> dict[tuple[KategorijaPdv, Decimal], Decimal]:
-        """Taxable base per (category, rate) group — one ``TaxSubtotal`` each."""
+        """Taxable base per (category, rate) group — one ``TaxSubtotal``
+        each. Per EN 16931 (BR-45): line nets of the group, minus its
+        document-level allowances, plus its charges."""
         groups: dict[tuple[KategorijaPdv, Decimal], Decimal] = {}
         for stavka in self.stavke:
             key = (stavka.kategorija, stavka.pdv_stopa)
             groups[key] = groups.get(key, Decimal("0")) + stavka.neto
+        for popust in self.popusti:
+            key = (popust.kategorija, popust.pdv_stopa)
+            groups[key] = groups.get(key, Decimal("0")) - popust.iznos
+        for trosak in self.troskovi:
+            key = (trosak.kategorija, trosak.pdv_stopa)
+            groups[key] = groups.get(key, Decimal("0")) + trosak.iznos
         return groups
+
+    def razlozi_oslobodjenja(self, kategorija: KategorijaPdv, stopa: Decimal) -> tuple[str, ...]:
+        """Distinct exemption reasons of a (category, rate) group, from its
+        lines and its document-level allowances/charges."""
+        exempt_like = (
+            KategorijaPdv.OSLOBODJENO,
+            KategorijaPdv.PRIJENOS_POREZNE_OBVEZE,
+            KategorijaPdv.NE_PODLIJEZE,
+        )
+        reasons = {
+            s.razlog_oslobodjenja
+            for s in self.stavke
+            if (s.kategorija, s.pdv_stopa) == (kategorija, stopa) and s.razlog_oslobodjenja
+        }
+        if kategorija in exempt_like:
+            for stavka_pt in (*self.popusti, *self.troskovi):
+                if (stavka_pt.kategorija, stavka_pt.pdv_stopa) == (kategorija, stopa):
+                    reasons.add(stavka_pt.razlog)
+        return tuple(sorted(reasons))
 
     @property
     def ukupno_neto(self) -> Decimal:
-        """Sum of line net amounts (BT-106 / BT-109)."""
+        """Sum of line net amounts (BT-106)."""
         return sum((s.neto for s in self.stavke), Decimal("0.00"))
+
+    @property
+    def ukupno_popust(self) -> Decimal:
+        """Sum of document-level allowances (BT-107)."""
+        return sum((p.iznos for p in self.popusti), Decimal("0.00"))
+
+    @property
+    def ukupno_trosak(self) -> Decimal:
+        """Sum of document-level charges (BT-108)."""
+        return sum((t.iznos for t in self.troskovi), Decimal("0.00"))
+
+    @property
+    def osnovica(self) -> Decimal:
+        """Invoice total without PDV (BT-109): lines - allowances + charges."""
+        return self.ukupno_neto - self.ukupno_popust + self.ukupno_trosak
 
     @property
     def ukupno_pdv(self) -> Decimal:
@@ -279,4 +361,4 @@ class ERacun(_Model):
     @property
     def ukupno_s_pdv(self) -> Decimal:
         """Amount payable (BT-112 / BT-115)."""
-        return self.ukupno_neto + self.ukupno_pdv
+        return self.osnovica + self.ukupno_pdv

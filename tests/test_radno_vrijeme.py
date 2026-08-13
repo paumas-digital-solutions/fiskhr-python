@@ -19,11 +19,13 @@ from fiskalhr.f1.radno_vrijeme import (
     ParNepar,
     ParniNeparni,
     PoDogovoru,
+    Poslovnica,
     RadnoVrijeme,
     Redovno,
     VrstaRadnogVremena,
     build_dohvati_radno_vrijeme_zahtjev,
     build_obrisi_radno_vrijeme_zahtjev,
+    build_prijavi_radno_vrijeme_za_poslovnice_zahtjev,
     build_prijavi_radno_vrijeme_zahtjev,
     parse_dohvati_radno_vrijeme_odgovor,
 )
@@ -106,6 +108,64 @@ def test_prijavi_validates_against_official_xsd(
     )
     xsd.assertValid(zahtjev)
     xsd.assertValid(etree.fromstring(sign_enveloped(zahtjev, signer_cert)))
+
+
+def _poslovnice() -> tuple[Poslovnica, ...]:
+    return (
+        Poslovnica(
+            ozn_pos_pr="POSL1",
+            raspored=Redovno(
+                datum_od=date(2026, 9, 1),
+                raspored=(
+                    Jednokratno(
+                        dan_u_tjednu=DanUTjednu.PONEDJELJAK,
+                        vrijeme_od="08:00",
+                        vrijeme_do="16:00",
+                    ),
+                ),
+            ),
+        ),
+        Poslovnica(
+            ozn_pos_pr="POSL2",
+            raspored=Iznimka(
+                datum=date(2026, 12, 25),
+                raspored=JednokratnoIznimka(vrijeme_od="09:00", vrijeme_do="12:00"),
+            ),
+        ),
+    )
+
+
+def test_prijavi_za_poslovnice_validates_against_official_xsd(
+    xsd: etree.XMLSchema, signer_cert: Certificate
+) -> None:
+    zahtjev = build_prijavi_radno_vrijeme_za_poslovnice_zahtjev(
+        TEST_OIB, _poslovnice(), TEST_OIB, datum_vrijeme=MESSAGE_TIME
+    )
+    xsd.assertValid(zahtjev)
+    xsd.assertValid(etree.fromstring(sign_enveloped(zahtjev, signer_cert)))
+
+
+def test_prijavi_za_poslovnice_end_to_end(signer_cert: Certificate) -> None:
+    from fiskalhr.f1.client import FiskalizacijaClient
+    from fiskalhr.testing import MockCis
+
+    mock = MockCis()
+    client = FiskalizacijaClient(signer_cert, transport=mock.transport())
+
+    odgovor = client.prijavi_radno_vrijeme_za_poslovnice(
+        TEST_OIB, _poslovnice(), TEST_OIB, datum_vrijeme=MESSAGE_TIME
+    )
+
+    assert odgovor.ok
+    assert [p.ozn_pos_pr for p in odgovor.poslovnice] == ["POSL1", "POSL2"]
+    assert all(p.poruka is not None and p.poruka.sifra == "p001" for p in odgovor.poslovnice)
+
+
+def test_prijavi_za_poslovnice_caps_at_100() -> None:
+    with pytest.raises(ValueError, match="1-100"):
+        build_prijavi_radno_vrijeme_za_poslovnice_zahtjev(
+            TEST_OIB, (), TEST_OIB, datum_vrijeme=MESSAGE_TIME
+        )
 
 
 def test_parni_neparni_schedule_validates(xsd: etree.XMLSchema) -> None:

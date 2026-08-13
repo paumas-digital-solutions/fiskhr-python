@@ -14,9 +14,11 @@ from fiskalhr.f2.ubl.models import (
     ERacun,
     KategorijaPdv,
     Operater,
+    Popust,
     PrethodniRacun,
     Stavka,
     Stranka,
+    Trosak,
 )
 from fiskalhr.f2.ubl.xml import to_xml
 
@@ -54,6 +56,8 @@ class ERacunBuilder:
         self._data: dict[str, Any] = {}
         self._stavke: list[Stavka] = []
         self._prethodni: list[PrethodniRacun] = []
+        self._popusti: list[Popust] = []
+        self._troskovi: list[Trosak] = []
 
     def izdavatelj(
         self,
@@ -181,12 +185,56 @@ class ERacunBuilder:
         )
         return self
 
+    def popust(
+        self,
+        *,
+        iznos: Decimal | int | str,
+        razlog: str,
+        kategorija: KategorijaPdv = KategorijaPdv.STANDARDNA,
+        pdv_stopa: Decimal | int | str = 0,
+        razlog_kod: str | None = None,
+    ) -> ERacunBuilder:
+        """A document-level allowance (BG-20); joins its VAT group's base."""
+        self._popusti.append(
+            Popust(
+                iznos=Decimal(str(iznos)),
+                razlog=razlog,
+                kategorija=kategorija,
+                pdv_stopa=Decimal(str(pdv_stopa)),
+                razlog_kod=razlog_kod,
+            )
+        )
+        return self
+
+    def trosak(
+        self,
+        *,
+        iznos: Decimal | int | str,
+        razlog: str,
+        kategorija: KategorijaPdv = KategorijaPdv.STANDARDNA,
+        pdv_stopa: Decimal | int | str = 0,
+        razlog_kod: str | None = None,
+    ) -> ERacunBuilder:
+        """A document-level charge (BG-21), e.g. shipping or a fee."""
+        self._troskovi.append(
+            Trosak(
+                iznos=Decimal(str(iznos)),
+                razlog=razlog,
+                kategorija=kategorija,
+                pdv_stopa=Decimal(str(pdv_stopa)),
+                razlog_kod=razlog_kod,
+            )
+        )
+        return self
+
     def build(self) -> ERacun:
         """Assemble the `ERacun`; raises Pydantic errors for anything missing."""
         return ERacun(
             **self._data,
             stavke=tuple(self._stavke),
             prethodni_racuni=tuple(self._prethodni),
+            popusti=tuple(self._popusti),
+            troskovi=tuple(self._troskovi),
         )
 
     def to_xml(self) -> etree._Element:

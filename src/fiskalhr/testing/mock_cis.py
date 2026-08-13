@@ -53,6 +53,7 @@ _RESPONSE_ROOTS = {
     "PromijeniNacPlacZahtjev": "PromijeniNacPlacOdgovor",
     "PromijeniPodatkeRacunaZahtjev": "PromijeniPodatkeRacunaOdgovor",
     "PrijaviRadnoVrijemeZahtjev": "PrijaviRadnoVrijemeOdgovor",
+    "PrijaviRadnoVrijemeZaPoslovniceZahtjev": "PrijaviRadnoVrijemeZaPoslovniceOdgovor",
     "ObrisiRadnoVrijemeZahtjev": "ObrisiRadnoVrijemeOdgovor",
     "DohvatiRadnoVrijemeZahtjev": "DohvatiRadnoVrijemeOdgovor",
 }
@@ -198,6 +199,19 @@ class MockCis:
                 po_dogovoru = etree.SubElement(redovno, f"{{{F73_NS}}}PoDogovoru")
                 etree.SubElement(po_dogovoru, f"{{{F73_NS}}}RedovnoPoDogovoru").text = "DA"
             self._append_greske(root, greske)
+        elif tag == "PrijaviRadnoVrijemeZaPoslovniceZahtjev" and not greske:
+            # Success branch is per-premises: echo each OznPosPr back.
+            odgovori = etree.SubElement(root, f"{{{F73_NS}}}PoslovniProstoriOdgovor")
+            for poslovnica in payload.findall(
+                f"{{{F73_NS}}}PoslovniProstori/{{{F73_NS}}}Poslovnica"
+            ):
+                odgovor = etree.SubElement(odgovori, f"{{{F73_NS}}}PoslovnicaOdgovor")
+                etree.SubElement(odgovor, f"{{{F73_NS}}}OznPosPr").text = (
+                    poslovnica.findtext(f"{{{F73_NS}}}OznPosPr") or ""
+                )
+                poruka_el = etree.SubElement(odgovor, f"{{{F73_NS}}}PorukaOdgovora")
+                etree.SubElement(poruka_el, f"{{{F73_NS}}}SifraPoruke").text = "p001"
+                etree.SubElement(poruka_el, f"{{{F73_NS}}}Poruka").text = "Uspješno zaprimljeno."
         elif greske:
             self._append_greske(root, greske)
         elif tag == "RacunZahtjev":

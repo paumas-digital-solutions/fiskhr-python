@@ -143,6 +143,34 @@ def test_predujam_passes_full_validation() -> None:
     assert report.findings == (), [f"{f.rule}: {f.message}" for f in report.findings]
 
 
+@needs_saxon
+def test_popust_i_trosak_pass_full_validation() -> None:
+    """Document-level allowance and charges (BG-20/21) join the VAT
+    breakdown and totals per EN 16931; an exempt charge triggers the
+    HRFISK20Data extension and carries Name + reason (HR-BR-11/13/26)."""
+    builder = (
+        _builder()
+        .popust(iznos="10.00", razlog="Rabat 10%", pdv_stopa=25)
+        .trosak(iznos="5.00", razlog="Trosak dostave", pdv_stopa=25)
+        .trosak(
+            iznos="4.00",
+            razlog="Oslobodjeno PDV-a prema cl. 39. Zakona o PDV-u",
+            kategorija=KategorijaPdv.OSLOBODJENO,
+        )
+    )
+    racun = builder.build()
+    report = validate(etree.tostring(to_xml(racun)))
+
+    assert report.findings == (), [f"{f.rule}: {f.message}" for f in report.findings]
+    # lines 100.00 S25; S25 base 100 - 10 + 5 = 95 -> PDV 23.75; E base 4
+    assert racun.ukupno_neto == Decimal("100.00")
+    assert racun.osnovica == Decimal("99.00")
+    assert racun.ukupno_pdv == Decimal("23.75")
+    assert racun.ukupno_s_pdv == Decimal("122.75")
+    assert racun.grupe_pdv[(KategorijaPdv.STANDARDNA, Decimal("25"))] == Decimal("95.00")
+    assert racun.grupe_pdv[(KategorijaPdv.OSLOBODJENO, Decimal("0"))] == Decimal("4.00")
+
+
 def test_kpd_required_for_regular_invoice_only() -> None:
     with pytest.raises(ValidationError, match="HR-BR-25"):
         _builder().stavka(naziv="Bez KPD", kolicina=1, cijena="1.00", pdv_stopa=25).build()

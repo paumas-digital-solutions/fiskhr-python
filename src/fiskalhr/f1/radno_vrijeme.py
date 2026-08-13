@@ -17,8 +17,10 @@ Schedule structure per the schema (spec v2.7, radno-vrijeme chapters):
 ``DanUTjednu``: 1-7 are Monday-Sunday, **8 is a public holiday** (praznik,
 državni blagdan).
 
-The bulk method ``PrijaviRadnoVrijemeZaPoslovnice`` (mass registration for
-IT service providers) is not implemented yet.
+The bulk method ``PrijaviRadnoVrijemeZaPoslovnice`` registers hours for
+1-100 premises in one message (`Poslovnica`, each with one regular block or
+one exception); the response reports per-premises outcomes
+(`PoslovniceOdgovor`).
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from pydantic import Field, field_validator
 
 from fiskalhr.core.errors import FiskalizacijaError
 from fiskalhr.f1.messages import DATUM_VRIJEME_FORMAT, F73_NS
-from fiskalhr.f1.models import Greska, Oib, _Model
+from fiskalhr.f1.models import Greska, Oib, PorukaOdgovora, _Model
 
 __all__ = [
     "BrisanjeRadnogVremena",
@@ -47,14 +49,19 @@ __all__ = [
     "ParNepar",
     "ParniNeparni",
     "PoDogovoru",
+    "Poslovnica",
+    "PoslovnicaOdgovor",
+    "PoslovniceOdgovor",
     "RadnoVrijeme",
     "RadnoVrijemeOdgovor",
     "Redovno",
     "VrstaRadnogVremena",
     "build_dohvati_radno_vrijeme_zahtjev",
     "build_obrisi_radno_vrijeme_zahtjev",
+    "build_prijavi_radno_vrijeme_za_poslovnice_zahtjev",
     "build_prijavi_radno_vrijeme_zahtjev",
     "parse_dohvati_radno_vrijeme_odgovor",
+    "parse_prijavi_radno_vrijeme_za_poslovnice_odgovor",
 ]
 
 DATUM_FORMAT = "%d.%m.%Y"
@@ -201,6 +208,44 @@ class BrisanjeRadnogVremena(_Model):
     iznimke: tuple[date, ...] = Field(default=(), max_length=10)
 
 
+class Poslovnica(_Model):
+    """``PoslovnicaType`` — one premises entry in the bulk registration:
+    its oznaka plus either one regular block or one exception."""
+
+    ozn_pos_pr: str
+    raspored: Redovno | Iznimka
+
+
+class PoslovnicaOdgovor(_Model):
+    """``PoslovnicaOdgovorType`` — per-premises outcome of the bulk call."""
+
+    ozn_pos_pr: str
+    poruka: PorukaOdgovora | None = None
+    greske: tuple[Greska, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return not self.greske
+
+
+class PoslovniceOdgovor(_Model):
+    """Parsed ``PrijaviRadnoVrijemeZaPoslovniceOdgovor``.
+
+    ``greske`` carries message-level errors (the whole request was
+    rejected); otherwise ``poslovnice`` holds one outcome per premises —
+    the service can accept some and reject others in the same call.
+    """
+
+    id_poruke: str | None
+    datum_vrijeme: datetime
+    poslovnice: tuple[PoslovnicaOdgovor, ...] = ()
+    greske: tuple[Greska, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return not self.greske and all(p.ok for p in self.poslovnice)
+
+
 class RadnoVrijemeOdgovor(_Model):
     """Parsed ``DohvatiRadnoVrijemeOdgovor``."""
 
@@ -271,8 +316,10 @@ def _fill_redovno(parent: etree._Element, redovno: Redovno) -> None:
         _interval(item, entry.vrijeme_od, entry.vrijeme_do)
 
 
-def _fill_iznimka(parent: etree._Element, iznimka: Iznimka) -> None:
-    element = _el(parent, "Iznimke")
+def _fill_iznimka(parent: etree._Element, iznimka: Iznimka, name: str = "Iznimke") -> None:
+    # RadnoVrijemeType calls the element "Iznimke"; PoslovnicaType calls the
+    # same IznimkeType "Iznimka".
+    element = _el(parent, name)
     _el(element, "Datum", iznimka.datum.strftime(DATUM_FORMAT))
     if isinstance(iznimka.raspored, JednokratnoIznimka):
         item = _el(element, "Jednokratno")
@@ -308,6 +355,32 @@ def build_prijavi_radno_vrijeme_zahtjev(
         _fill_redovno(rv_element, redovno)
     for iznimka in radno_vrijeme.iznimke:
         _fill_iznimka(rv_element, iznimka)
+    _el(root, "OibOper", oib_oper)
+    return root
+
+
+def build_prijavi_radno_vrijeme_za_poslovnice_zahtjev(
+    oib: Oib,
+    poslovnice: tuple[Poslovnica, ...] | list[Poslovnica],
+    oib_oper: Oib,
+    *,
+    datum_vrijeme: datetime,
+    id_poruke: uuid.UUID | None = None,
+) -> etree._Element:
+    """Build a ``PrijaviRadnoVrijemeZaPoslovniceZahtjev`` (bulk, 1-100
+    premises in one message)."""
+    if not 1 <= len(poslovnice) <= 100:
+        raise ValueError(f"a message carries 1-100 poslovnice, got {len(poslovnice)}")
+    root = _root("PrijaviRadnoVrijemeZaPoslovniceZahtjev", id_poruke, datum_vrijeme)
+    _el(root, "Oib", oib)
+    prostori = _el(root, "PoslovniProstori")
+    for poslovnica in poslovnice:
+        element = _el(prostori, "Poslovnica")
+        _el(element, "OznPosPr", poslovnica.ozn_pos_pr)
+        if isinstance(poslovnica.raspored, Iznimka):
+            _fill_iznimka(element, poslovnica.raspored, name="Iznimka")
+        else:
+            _fill_redovno(element, poslovnica.raspored)
     _el(root, "OibOper", oib_oper)
     return root
 
@@ -459,5 +532,44 @@ def parse_dohvati_radno_vrijeme_odgovor(xml: bytes | etree._Element) -> RadnoVri
         oib=prostor.findtext(_tag("Oib")) or "",
         ozn_pos_pr=prostor.findtext(_tag("OznPosPr")) or "",
         radno_vrijeme=radno_vrijeme,
+        greske=_parse_greske(root),
+    )
+
+
+def parse_prijavi_radno_vrijeme_za_poslovnice_odgovor(
+    xml: bytes | etree._Element,
+) -> PoslovniceOdgovor:
+    """Parse a ``PrijaviRadnoVrijemeZaPoslovniceOdgovor`` into models."""
+    # Late import to avoid a cycle: messages does not know about this module.
+    from fiskalhr.f1.messages import _parse_greske, _parse_zaglavlje
+
+    root = etree.fromstring(xml) if isinstance(xml, bytes) else xml
+    expected = "PrijaviRadnoVrijemeZaPoslovniceOdgovor"
+    if root.tag != _tag(expected):
+        raise FiskalizacijaError(f"expected {expected}, got {root.tag!r}")
+    id_poruke, datum_vrijeme = _parse_zaglavlje(root, expected)
+
+    poslovnice = []
+    odgovori = root.find(_tag("PoslovniProstoriOdgovor"))
+    if odgovori is not None:
+        for element in odgovori.findall(_tag("PoslovnicaOdgovor")):
+            poruka_el = element.find(_tag("PorukaOdgovora"))
+            poruka = None
+            if poruka_el is not None:
+                poruka = PorukaOdgovora(
+                    sifra=(poruka_el.findtext(_tag("SifraPoruke")) or "").strip(),
+                    poruka=(poruka_el.findtext(_tag("Poruka")) or "").strip(),
+                )
+            poslovnice.append(
+                PoslovnicaOdgovor(
+                    ozn_pos_pr=element.findtext(_tag("OznPosPr")) or "",
+                    poruka=poruka,
+                    greske=_parse_greske(element),
+                )
+            )
+    return PoslovniceOdgovor(
+        id_poruke=id_poruke,
+        datum_vrijeme=datum_vrijeme,
+        poslovnice=tuple(poslovnice),
         greske=_parse_greske(root),
     )
