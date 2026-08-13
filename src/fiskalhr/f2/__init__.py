@@ -16,6 +16,7 @@ Key constants of the regime (from the official examples and CIUS spec):
   urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0``
 - ``ProfileID``: ``P1``
 
-Implementation lands module by module in Phase 2 (UBL models + builder +
-validation) and Phase 3 (eFiskalizacija messages).
+Phase 2 modules are in place: ``fiskalhr.f2.ubl`` (models, `ERacunBuilder`,
+``to_xml``) and ``fiskalhr.f2.validation`` (XSD + Schematron with structured
+reports). Phase 3 adds the eFiskalizacija messages.
 """

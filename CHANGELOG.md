@@ -19,6 +19,21 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.ubl` — eRačun construction: `ERacunBuilder` (fluent API),
+  Pydantic models (`ERacun`, `Stavka`, `Stranka`, `Operater`,
+  `KategorijaPdv`) and `to_xml()` producing UBL 2.1 Invoices under HR CIUS
+  2025 + ext-2025. Documents carry the required `CustomizationID`,
+  `ProfileID`, operator contact (HR-BR-9/37), per-item KPD classification
+  (HR-BR-25, `listID="CG"`), the HR VAT category mark `cbc:Name`
+  (HR-BT-12, `HR:PDV25`/`HR:E`/…) and line-level exemption reasons
+  (HR-BR-16/36), plus the `HRFISK20Data` extension with the HR VAT
+  breakdown when exempt (E) or out-of-scope (O) categories are present
+  (HR-BR-26/32). Totals are computed, never supplied; category/rate
+  consistency, OIB checksums and exemption reasons are enforced at model
+  construction. The test suite proves built invoices pass the complete
+  official validation — XSD plus the full HR Schematron — with **zero
+  findings**.
+
 - `fiskalhr.f2.validation` — eRačun validation returning a structured
   `ValidationReport` (never raises on findings): XSD against the vendored
   UBL 2.1 schemas (Invoice and CreditNote auto-detected), then the HR CIUS

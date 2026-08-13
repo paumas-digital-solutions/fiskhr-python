@@ -12,9 +12,11 @@
 
 > **Status: pre-alpha.** The F1 pipeline is implemented end to end —
 > certificates, offline ZKI, XML-DSig, SOAP transport, `FiskalizacijaClient`,
-> and a mock CIS server for offline testing. Demo-environment validation is
-> the next milestone; see the [roadmap](#roadmap). Nothing is API-stable
-> before v1.0.
+> and a mock CIS server for offline testing. On the F2 side, `ERacunBuilder`
+> produces UBL 2.1 invoices that pass the complete official validation (XSD
+> plus the full HR CIUS 2025 Schematron) with zero findings.
+> Demo-environment validation is the next milestone; see the
+> [roadmap](#roadmap). Nothing is API-stable before v1.0.
 >
 > Targets **F1 tech spec v2.7 (21.07.2026)** and **schema/WSDL v1.10**,
 > including the RSA-SHA1 → RSA-SHA256 migration (SHA-256 is the default;
@@ -101,6 +103,55 @@ And from the terminal:
 ```bash
 fiskalhr cert info FISKAL_1.p12   # password prompted, never a CLI argument
 ```
+
+### F2 — building an eRačun
+
+```python
+from datetime import date, time
+
+from lxml import etree
+
+from fiskalhr.f2.ubl import ERacunBuilder
+from fiskalhr.f2.validation import validate
+
+eracun = (
+    ERacunBuilder()
+    .izdavatelj(
+        oib="12345678903",
+        naziv="Tvrtka d.o.o.",
+        ulica="Ulica 1",
+        grad="Zagreb",
+        postanski_broj="10000",
+    )
+    .primatelj(
+        oib="00000000001",
+        naziv="Kupac d.o.o.",
+        ulica="Ulica 2",
+        grad="Rijeka",
+        postanski_broj="51000",
+    )
+    .operater(oib="12345678903", oznaka="Operater1")
+    .broj("2026-42-P1-1")
+    .datum_izdavanja(date(2026, 8, 13), time(12, 0))
+    .datum_isporuke(date(2026, 7, 31))
+    .dospijece(date(2026, 9, 12))
+    .placanje(iban="HR1210010051863000160", poziv_na_broj="HR00 42")
+    .stavka(naziv="Licenca za softver", kpd="62.20.20", kolicina=1, cijena="100.00", pdv_stopa=25)
+)
+
+xml = etree.tostring(eracun.to_xml(), xml_declaration=True, encoding="UTF-8")
+
+report = validate(xml)  # official XSD + full HR CIUS 2025 Schematron
+assert report.ok
+```
+
+Totals, tax subtotals and the `HRFISK20Data` extension are derived from the
+line items — you never supply them. Invalid combinations (a standard-rated
+line with 0 % PDV, an exempt line without a reason, a bad OIB checksum)
+fail at construction time with the HR rule id in the message. The test
+suite guarantees built invoices pass the complete official validation with
+zero findings — Schematron included (install the `fiskalhr[validation]`
+extra for that part).
 
 ## Scope
 

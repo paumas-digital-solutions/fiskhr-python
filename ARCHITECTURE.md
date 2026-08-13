@@ -32,7 +32,7 @@ src/fiskalhr/
 │   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
-│   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules [Phase 2]
+│   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules [done]
 │   ├── validation/       # XSD + Schematron, structured reports    [done]
 │   ├── fiskalizacija.py  # EvidentirajERacun
 │   ├── izvjestavanje.py  # EvidentirajNaplatu, EvidentirajOdbijanje

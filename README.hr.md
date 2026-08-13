@@ -7,9 +7,12 @@
 - **Fiskalizacija 2.0 (F2)** — B2B eRačun: UBL 2.1 računi usklađeni s
   HR CIUS 2025 te poruke `eFiskalizacija` i `eIzvještavanje`.
 
-> **Status: pre-alpha.** Osnovni sloj (certifikati, validacija OIB-a, offline
-> izračun ZKI-ja) radi i pokriven je testovima. F1 klijent je u izradi.
-> API nije stabilan prije verzije 1.0.
+> **Status: pre-alpha.** F1 je implementiran s kraja na kraj — certifikati,
+> offline izračun ZKI-ja, XML-DSig potpis, SOAP transport,
+> `FiskalizacijaClient` i mock CIS za testiranje bez demo okruženja. Na F2
+> strani `ERacunBuilder` gradi UBL 2.1 račune koji prolaze službenu
+> validaciju (XSD i kompletna HR CIUS 2025 Schematron pravila) bez ijednog
+> nalaza. API nije stabilan prije verzije 1.0.
 
 Potpuna dokumentacija je na engleskom — vidi [README.md](README.md). Nazivi
 domenskih pojmova namjerno ostaju hrvatski i identični specifikaciji
