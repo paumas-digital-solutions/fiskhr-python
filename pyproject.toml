@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fiskalhr"
-version = "0.0.1"
+dynamic = ["version"]
 description = "Croatian fiscalization for Python: Fiskalizacija 1.0 (B2C receipts, ZKI, CIS) and Fiskalizacija 2.0 (eRacun, UBL 2.1, HR CIUS 2025)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -65,6 +65,10 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.6",
 ]
+
+[tool.hatch.version]
+# Single source of truth for the version; releases bump only __init__.py.
+path = "src/fiskalhr/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fiskalhr"]

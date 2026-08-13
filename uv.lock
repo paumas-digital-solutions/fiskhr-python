@@ -412,7 +412,6 @@ wheels = [
 
 [[package]]
 name = "fiskalhr"
-version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

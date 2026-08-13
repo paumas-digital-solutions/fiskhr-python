@@ -51,6 +51,32 @@ valuable information — please report it even without a fix.
 - Update `CHANGELOG.md` under `[Unreleased]` for anything user-visible.
 - CI (ruff, mypy `--strict`, pytest on 3.11–3.13) must be green.
 
+## Releasing (maintainers)
+
+Publishing to PyPI is automated and token-free: the `Release` workflow
+uses [trusted publishing](https://docs.pypi.org/trusted-publishers/)
+(OIDC), runs only on version tags, and only after the full check suite
+passes on the tagged commit. No PyPI credential exists anywhere in this
+repository or its CI, and none may ever be added.
+
+To cut a release:
+
+1. Bump `__version__` in `src/fiskalhr/__init__.py` — the single source of
+   truth (`pyproject.toml` reads it via `[tool.hatch.version]`).
+2. Move the `Unreleased` entries in `CHANGELOG.md` under the new version
+   heading, with the date and the targeted spec/schema revisions.
+3. Commit, then tag and push:
+
+   ```bash
+   git tag v0.1.0
+   git push origin main v0.1.0
+   ```
+
+The workflow verifies the tag matches `__version__`, builds the sdist and
+wheel, runs `twine check`, and publishes. The `pypi` GitHub environment can
+carry a required-reviewer rule (repo settings → Environments) as a manual
+approval gate before the publish step runs.
+
 ## Reporting issues
 
 Bug reports with a failing test or a captured request/response XML (with OIBs

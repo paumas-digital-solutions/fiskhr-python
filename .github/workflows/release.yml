@@ -1,0 +1,98 @@
+# Release policy: publishing to PyPI happens only from a version tag
+# (v0.1.0, v1.2.3, ...), only after the full check suite passes, and only
+# via PyPI trusted publishing (OIDC) — there is no API token stored in this
+# repository and none may ever be added. The `pypi` environment can carry a
+# required-reviewer rule in the repo settings as an extra gate.
+#
+# Releasing (see CONTRIBUTING.md):
+#   1. bump __version__ in src/fiskalhr/__init__.py (the single source)
+#   2. move the CHANGELOG "Unreleased" entries under the new version
+#   3. commit, tag `vX.Y.Z`, push the tag
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Full check suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra validation
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy --strict)
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run pytest --cov
+
+  build:
+    name: Build sdist and wheel
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check tag matches package version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_version="$(uvx hatchling version)"
+          if [ "$tag_version" != "$package_version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match __version__ $package_version" >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check --strict dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/fiskalhr/
+    permissions:
+      # Trusted publishing: PyPI trusts this workflow's OIDC identity
+      # (repository + workflow file + environment), so no token exists.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
