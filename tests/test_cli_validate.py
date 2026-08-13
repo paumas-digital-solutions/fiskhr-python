@@ -33,6 +33,33 @@ def test_validate_full_reports_findings(capsys: pytest.CaptureFixture[str]) -> N
     assert "INVALID (XSD + Schematron" in captured.err
 
 
+def test_validate_json_output(capsys: pytest.CaptureFixture[str]) -> None:
+    import json
+
+    rc = main(["validate", str(CORPUS / "eRacun-PDV25.xml"), "--no-schematron", "--json"])
+    report = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert report["ok"] is True
+    assert report["schematron_ran"] is False
+    assert report["findings"] == []
+
+
+@needs_saxon
+def test_validate_json_output_carries_findings(capsys: pytest.CaptureFixture[str]) -> None:
+    import json
+
+    rc = main(["validate", str(CORPUS / "eRacun-PDV25.xml"), "--json"])
+    report = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert report["ok"] is False
+    rules = {finding["rule"] for finding in report["findings"]}
+    assert "HR-BR-9" in rules
+    assert all(
+        set(finding) == {"severity", "source", "rule", "message", "location"}
+        for finding in report["findings"]
+    )
+
+
 def test_validate_broken_structure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     broken = tmp_path / "broken.xml"
     broken.write_text(

@@ -31,6 +31,32 @@ def test_cert_info(
     assert "expired:          no" in out
 
 
+def test_ovlastenja_lists_oibi(
+    p12_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient
+    from fiskalhr.testing import MockEIzvjestavanje
+
+    monkeypatch.setenv(PASSWORD_ENV_VAR, TEST_P12_PASSWORD)
+    mock = MockEIzvjestavanje(ovlasteni_oibi=(TEST_OIB, "00000000001"))
+
+    original_init = EIzvjestavanjeClient.__init__
+
+    def init_with_mock(self: EIzvjestavanjeClient, *args: object, **kwargs: object) -> None:
+        kwargs["transport"] = mock.transport()
+        original_init(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(EIzvjestavanjeClient, "__init__", init_with_mock)
+
+    # No explicit OIB: falls back to the certificate subject's OIB.
+    assert main(["ovlastenja", str(p12_path)]) == 0
+
+    out = capsys.readouterr().out.splitlines()
+    assert out == [TEST_OIB, "00000000001"]
+
+
 def test_cert_info_wrong_password_fails_cleanly(
     p12_path: Path,
     capsys: pytest.CaptureFixture[str],

@@ -19,6 +19,12 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- CLI: `fiskalhr ovlastenja CERT.p12 [oib]` — asks the F2 service which
+  OIBs the certificate holder may report for (OIB defaults to the one in
+  the certificate subject); `fiskalhr validate --json` prints a
+  machine-readable report for CI pipelines. The CLI remains
+  diagnostic-only by design — it never fiscalizes.
+
 - Document-level allowances and charges (BG-20/21): `ERacunBuilder.popust()`
   and `.trosak()` join the VAT breakdown per EN 16931 — each group's taxable
   base is its lines minus its allowances plus its charges, and the totals

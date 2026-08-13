@@ -103,8 +103,18 @@ odgovor = client.fiskaliziraj(racun)  # never leaves the process
 And from the terminal:
 
 ```bash
-fiskalhr cert info FISKAL_1.p12   # password prompted, never a CLI argument
+fiskalhr cert info FISKAL_1.p12    # password prompted, never a CLI argument
+fiskalhr zki FISKAL_1.p12 --oib ... --datum-vrijeme '13.08.2026 12:00:00' \
+    --br-ozn-rac 1 --ozn-pos-pr POSL1 --ozn-nap-ur 12 --iznos 125.00
+fiskalhr echo --env demo           # CIS connectivity test
+fiskalhr validate racun.xml        # XSD + full HR CIUS 2025 Schematron
+fiskalhr validate racun.xml --json # machine-readable, for CI pipelines
+fiskalhr ovlastenja FISKAL.p12     # which OIBs may this certificate report for (F2)
 ```
+
+The CLI is deliberately diagnostic-only: it inspects, computes, validates,
+and queries, but never fiscalizes — real tax records don't belong in shell
+history.
 
 ### F2 — building an eRačun
 
@@ -204,7 +214,7 @@ requests, verify your XAdES signature, and answer with signed responses.
 | F2 validation | XSD + Schematron with structured reports |
 | F2 messages | `EvidentirajERacun`, `EvidentirajNaplatu`, `EvidentirajOdbijanje`, `EvidentirajIsporukuZaKojuNijeIzdanERacun`, `OvlastenjaFiskalizacije` |
 | Testing tools | Mock CIS server, golden fixtures, demo smoke-test harness |
-| CLI | ZKI computation, validation, echo, cert inspection |
+| CLI | ZKI computation, validation (`--json` for CI), echo, cert inspection, ovlastenja query |
 
 ### Explicitly out of scope
 

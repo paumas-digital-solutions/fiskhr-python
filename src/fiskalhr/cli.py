@@ -1,7 +1,10 @@
 """The ``fiskalhr`` command-line interface.
 
-Commands: ``cert info``, ``zki``, ``echo``. ``validate`` and ``fiscalize``
-arrive with the corresponding library phases.
+Commands: ``cert info``, ``zki``, ``echo``, ``validate``, ``ovlastenja`` —
+diagnostics and offline tooling only, by design. Actually fiscalizing
+(sending receipts or eRačun reports) is deliberately not a CLI feature:
+real tax records don't belong in shell history, and integrations need the
+retry/outbox handling only the Python API can be wired into.
 
 P12 passwords are read from the ``FISKALHR_P12_PASSWORD`` environment variable
 or prompted interactively — never accepted as a command-line argument, because
@@ -103,6 +106,33 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="XSD-only validation (skip the HR CIUS business rules)",
     )
+    validate_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="machine-readable report on stdout (for CI pipelines)",
+    )
+
+    ovlastenja_parser = subparsers.add_parser(
+        "ovlastenja",
+        help="list the OIBs a certificate may report for (F2)",
+        description=(
+            "Call OvlastenjaFiskalizacije: which OIBs is the certificate holder "
+            "authorised to send fiscalization data for? The request is XAdES-signed "
+            f"with the given certificate; password from ${PASSWORD_ENV_VAR} or prompted."
+        ),
+    )
+    ovlastenja_parser.add_argument("cert", help="path to the .p12/.pfx file")
+    ovlastenja_parser.add_argument(
+        "oib",
+        nargs="?",
+        help="taxpayer OIB to query (default: the OIB from the certificate subject)",
+    )
+    ovlastenja_parser.add_argument(
+        "--env",
+        choices=[env.value for env in Environment],
+        default=Environment.DEMO.value,
+        help="target environment (default: demo)",
+    )
 
     return parser
 
@@ -174,11 +204,36 @@ def _echo(args: argparse.Namespace) -> int:
 
 
 def _validate(args: argparse.Namespace) -> int:
+    import json
     from pathlib import Path
 
     from fiskalhr.f2.validation import validate
 
     report = validate(Path(args.path).read_bytes(), schematron=not args.no_schematron)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "ok": report.ok,
+                    "schematron_ran": report.schematron_ran,
+                    "findings": [
+                        {
+                            "severity": finding.severity.value,
+                            "source": finding.source,
+                            "rule": finding.rule,
+                            "message": finding.message,
+                            "location": finding.location,
+                        }
+                        for finding in report.findings
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0 if report.ok else 1
+
     for finding in report.findings:
         rule = f" [{finding.rule}]" if finding.rule else ""
         location = f" @ {finding.location}" if finding.location else ""
@@ -192,6 +247,29 @@ def _validate(args: argparse.Namespace) -> int:
     return 1
 
 
+def _ovlastenja(args: argparse.Namespace) -> int:
+    from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient
+
+    cert = Certificate.from_p12(args.cert, _read_password())
+    oib = args.oib or cert.oib
+    if oib is None:
+        print(
+            "error: no OIB given and none found in the certificate subject; "
+            "pass it explicitly: fiskalhr ovlastenja CERT.p12 <oib>",
+            file=sys.stderr,
+        )
+        return 2
+
+    with EIzvjestavanjeClient(cert, env=Environment(args.env)) as client:
+        oibi = client.ovlastenja(oib)
+    if not oibi:
+        print(f"no authorised OIBs reported for {oib}")
+        return 0
+    for authorised in oibi:
+        print(authorised)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
@@ -203,6 +281,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _echo(args)
         if args.command == "validate":
             return _validate(args)
+        if args.command == "ovlastenja":
+            return _ovlastenja(args)
     except FiskalizacijaError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
