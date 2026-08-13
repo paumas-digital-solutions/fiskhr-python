@@ -32,8 +32,8 @@ src/fiskalhr/
 │   └── schemas/          # vendored XSDs, versioned                [done: v1.10]
 │
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
-│   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules
-│   ├── validation/       # XSD + Schematron, structured reports
+│   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules [Phase 2]
+│   ├── validation/       # XSD + Schematron, structured reports    [done]
 │   ├── fiskalizacija.py  # EvidentirajERacun
 │   ├── izvjestavanje.py  # EvidentirajNaplatu, EvidentirajOdbijanje
 │   ├── posrednik/        # delivery adapters (base protocol + FINA)
@@ -139,6 +139,13 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
   frozen value semantics come for free, and the library's primary consumers
   (FastAPI-based systems) already carry the dependency. Models are frozen
   and reject unknown fields (``extra="forbid"``) so typos fail loudly.
+- **Schematron: pre-compiled XSLT + `saxonche` as an optional extra.** The
+  official HR rules declare ``queryBinding="xslt2"`` and embed XSLT
+  functions (``u:ctrlOIB``), so a real XSLT 2.0 engine is unavoidable.
+  The ``.sch`` is compiled once with SchXslt (Apache-2.0) and the compiled
+  stylesheet is vendored, so runtime needs only SaxonC-HE (``saxonche``),
+  installed via ``fiskalhr[validation]``. Core install stays lean; XSD-only
+  validation works without the extra. Regeneration procedure in SOURCES.md.
 - **XML-DSig: `signxml`** (over `lxml` + `xmlsec`). Rationale: pure-Python
   dependency chain (lxml + cryptography, no libxmlsec system library),
   supports the exact spec profile (enveloped + exc-c14n requests,

@@ -19,6 +19,18 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.validation` — eRačun validation returning a structured
+  `ValidationReport` (never raises on findings): XSD against the vendored
+  UBL 2.1 schemas (Invoice and CreditNote auto-detected), then the HR CIUS
+  2025 Schematron rules executed as a pre-compiled XSLT under SaxonC-HE.
+  Schematron needs the optional `fiskalhr[validation]` extra (`saxonche`);
+  without it, XSD-only validation still works. The conformance tests pin
+  the exact rule set that fires on the official examples (their sample data
+  uses pre-2026 dates and dummy OIBs), proving the embedded `u:ctrlOIB`
+  checksum function executes.
+- CLI: `fiskalhr validate racun.xml` — prints findings with rule ids and
+  exits non-zero on errors; `--no-schematron` for XSD-only.
+
 - Vendored the complete F2 (Fiskalizacija 2.0 / eRačun) specification set
   from the Tax Administration: HR CIUS 2025 + ext-2025 spec, **HR Schematron
   1.0.0** (13.03.2026, XSLT 2.0 binding), UBL 2.1 XSDs with the HR extension

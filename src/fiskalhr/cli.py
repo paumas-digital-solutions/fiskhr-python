@@ -89,6 +89,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="target environment (default: demo)",
     )
 
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="validate an eRacun (UBL Invoice/CreditNote) against HR CIUS 2025",
+        description=(
+            "Validate a UBL 2.1 eRacun: XSD structure, then the HR CIUS 2025 "
+            "Schematron rules (requires the fiskalhr[validation] extra)."
+        ),
+    )
+    validate_parser.add_argument("path", help="path to the eRacun XML file")
+    validate_parser.add_argument(
+        "--no-schematron",
+        action="store_true",
+        help="XSD-only validation (skip the HR CIUS business rules)",
+    )
+
     return parser
 
 
@@ -158,6 +173,25 @@ def _echo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _validate(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from fiskalhr.f2.validation import validate
+
+    report = validate(Path(args.path).read_bytes(), schematron=not args.no_schematron)
+    for finding in report.findings:
+        rule = f" [{finding.rule}]" if finding.rule else ""
+        location = f" @ {finding.location}" if finding.location else ""
+        print(f"{finding.severity.value}{rule}: {finding.message}{location}")
+
+    checked = "XSD + Schematron" if report.schematron_ran else "XSD"
+    if report.ok:
+        print(f"OK ({checked}; {len(report.warnings)} warning(s))")
+        return 0
+    print(f"INVALID ({checked}; {len(report.errors)} error(s))", file=sys.stderr)
+    return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
@@ -167,6 +201,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _zki(args)
         if args.command == "echo":
             return _echo(args)
+        if args.command == "validate":
+            return _validate(args)
     except FiskalizacijaError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
