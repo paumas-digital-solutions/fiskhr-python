@@ -1,4 +1,4 @@
-"""Serialisation of `ERacun` models to UBL 2.1 Invoice documents.
+"""Serialisation of `ERacun` models to UBL 2.1 Invoice/CreditNote documents.
 
 Element order follows the UBL schema sequences exactly, mirroring the
 official Tax Administration examples. Optional elements are emitted only
@@ -26,6 +26,7 @@ from fiskalhr.f2.ubl.models import (
 __all__ = ["to_xml"]
 
 INVOICE_NS = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+CREDITNOTE_NS = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
 CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
 CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
@@ -33,19 +34,22 @@ SIG = "urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2"
 SAC = "urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2"
 HREXTAC = "urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1"
 
-# lxml accepts a None key for the default namespace; the stubs don't.
-_NSMAP = cast(
-    "dict[str, str]",
-    {
-        None: INVOICE_NS,
-        "cac": CAC,
-        "cbc": CBC,
-        "ext": EXT,
-        "sig": SIG,
-        "sac": SAC,
-        "hrextac": HREXTAC,
-    },
-)
+
+def _nsmap(root_ns: str) -> dict[str, str]:
+    # lxml accepts a None key for the default namespace; the stubs don't.
+    return cast(
+        "dict[str, str]",
+        {
+            None: root_ns,
+            "cac": CAC,
+            "cbc": CBC,
+            "ext": EXT,
+            "sig": SIG,
+            "sac": SAC,
+            "hrextac": HREXTAC,
+        },
+    )
+
 
 _HR_EXTENSION_CATEGORIES = (KategorijaPdv.OSLOBODJENO, KategorijaPdv.NE_PODLIJEZE)
 """Categories whose presence requires the HRFISK20Data extension (HR-BR-26,
@@ -145,8 +149,17 @@ def _party(parent: etree._Element, name: str, stranka: Stranka) -> etree._Elemen
 
 
 def to_xml(racun: ERacun) -> etree._Element:
-    """Serialise to a UBL Invoice element (unsigned, signature slot ready)."""
-    root = etree.Element(f"{{{INVOICE_NS}}}Invoice", nsmap=_NSMAP)
+    """Serialise to a UBL document element (unsigned, signature slot ready).
+
+    Type 381 (odobrenje) becomes a UBL ``CreditNote``; everything else a
+    UBL ``Invoice``. The two schemas differ only where noted inline: the
+    type-code and line element names, and the due date, which the
+    CreditNote schema keeps inside ``PaymentMeans/PaymentDueDate``.
+    """
+    odobrenje = racun.je_odobrenje
+    root_ns = CREDITNOTE_NS if odobrenje else INVOICE_NS
+    root_name = "CreditNote" if odobrenje else "Invoice"
+    root = etree.Element(f"{{{root_ns}}}{root_name}", nsmap=_nsmap(root_ns))
     extensions = etree.SubElement(root, f"{{{EXT}}}UBLExtensions")
     _signature_slot(extensions)
     if any(s.kategorija in _HR_EXTENSION_CATEGORIES for s in racun.stavke):
@@ -157,12 +170,17 @@ def to_xml(racun: ERacun) -> etree._Element:
     _cbc(root, "ID", racun.broj)
     _cbc(root, "IssueDate", racun.datum_izdavanja.isoformat())
     _cbc(root, "IssueTime", racun.vrijeme_izdavanja.strftime("%H:%M:%S"))
-    if racun.datum_dospijeca is not None:
+    if not odobrenje and racun.datum_dospijeca is not None:
         _cbc(root, "DueDate", racun.datum_dospijeca.isoformat())
-    _cbc(root, "InvoiceTypeCode", racun.vrsta)
+    _cbc(root, "CreditNoteTypeCode" if odobrenje else "InvoiceTypeCode", racun.vrsta)
     if racun.napomena is not None:
         _cbc(root, "Note", racun.napomena)
     _cbc(root, "DocumentCurrencyCode", racun.valuta)
+
+    for prethodni in racun.prethodni_racuni:
+        reference = _cac(_cac(root, "BillingReference"), "InvoiceDocumentReference")
+        _cbc(reference, "ID", prethodni.broj)
+        _cbc(reference, "IssueDate", prethodni.datum_izdavanja.isoformat())
 
     supplier = _party(root, "AccountingSupplierParty", racun.izdavatelj)
     contact = _cac(supplier, "SellerContact")
@@ -177,6 +195,8 @@ def to_xml(racun: ERacun) -> etree._Element:
 
     payment = _cac(root, "PaymentMeans")
     _cbc(payment, "PaymentMeansCode", racun.nacin_placanja)
+    if odobrenje and racun.datum_dospijeca is not None:
+        _cbc(payment, "PaymentDueDate", racun.datum_dospijeca.isoformat())
     if racun.opis_placanja is not None:
         _cbc(payment, "InstructionNote", racun.opis_placanja)
     if racun.poziv_na_broj is not None:
@@ -210,18 +230,21 @@ def to_xml(racun: ERacun) -> etree._Element:
     _cbc(total, "TaxInclusiveAmount", _iznos(racun.ukupno_s_pdv), currencyID=racun.valuta)
     _cbc(total, "PayableAmount", _iznos(racun.ukupno_s_pdv), currencyID=racun.valuta)
 
+    line_name = "CreditNoteLine" if odobrenje else "InvoiceLine"
+    quantity_name = "CreditedQuantity" if odobrenje else "InvoicedQuantity"
     for index, stavka in enumerate(racun.stavke, start=1):
-        line = _cac(root, "InvoiceLine")
+        line = _cac(root, line_name)
         _cbc(line, "ID", str(index))
-        _cbc(line, "InvoicedQuantity", _broj(stavka.kolicina), unitCode=stavka.jedinica)
+        _cbc(line, quantity_name, _broj(stavka.kolicina), unitCode=stavka.jedinica)
         _cbc(line, "LineExtensionAmount", _iznos(stavka.neto), currencyID=racun.valuta)
 
         item = _cac(line, "Item")
         if stavka.opis is not None:
             _cbc(item, "Description", stavka.opis)
         _cbc(item, "Name", stavka.naziv)
-        classification = _cac(item, "CommodityClassification")
-        _cbc(classification, "ItemClassificationCode", stavka.kpd, listID="CG")
+        if stavka.kpd is not None:
+            classification = _cac(item, "CommodityClassification")
+            _cbc(classification, "ItemClassificationCode", stavka.kpd, listID="CG")
         category = _cac(item, "ClassifiedTaxCategory")
         _cbc(category, "ID", stavka.kategorija.value)
         oznaka = hr_oznaka(stavka.kategorija, stavka.pdv_stopa)

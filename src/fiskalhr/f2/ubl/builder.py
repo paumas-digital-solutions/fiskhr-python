@@ -8,7 +8,16 @@ from typing import Any
 
 from lxml import etree
 
-from fiskalhr.f2.ubl.models import Adresa, ERacun, KategorijaPdv, Operater, Stavka, Stranka
+from fiskalhr.f2.ubl.models import (
+    ODOBRENJE,
+    Adresa,
+    ERacun,
+    KategorijaPdv,
+    Operater,
+    PrethodniRacun,
+    Stavka,
+    Stranka,
+)
 from fiskalhr.f2.ubl.xml import to_xml
 
 __all__ = ["ERacunBuilder"]
@@ -44,6 +53,7 @@ class ERacunBuilder:
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._stavke: list[Stavka] = []
+        self._prethodni: list[PrethodniRacun] = []
 
     def izdavatelj(
         self,
@@ -124,11 +134,30 @@ class ERacunBuilder:
         self._data["napomena"] = tekst
         return self
 
+    def vrsta(self, kod: str) -> ERacunBuilder:
+        """UNCL 1001 document type; 381 produces a UBL CreditNote."""
+        self._data["vrsta"] = kod
+        return self
+
+    def prethodni_racun(self, broj: str, datum_izdavanja: date) -> ERacunBuilder:
+        """Reference a preceding invoice (BG-3); repeatable."""
+        self._prethodni.append(PrethodniRacun(broj=broj, datum_izdavanja=datum_izdavanja))
+        return self
+
+    def odobrenje(self, broj_racuna: str, datum_izdavanja: date) -> ERacunBuilder:
+        """Make this a credit note (381) for the referenced invoice.
+
+        Amounts stay positive — a UBL CreditNote credits what its lines
+        state. KPD codes become optional on the lines (HR-BR-25), and no
+        due date is required (HR-BR-4).
+        """
+        return self.vrsta(ODOBRENJE).prethodni_racun(broj_racuna, datum_izdavanja)
+
     def stavka(
         self,
         *,
         naziv: str,
-        kpd: str,
+        kpd: str | None = None,
         kolicina: Decimal | int | str,
         cijena: Decimal | int | str,
         pdv_stopa: Decimal | int | str = 0,
@@ -154,7 +183,11 @@ class ERacunBuilder:
 
     def build(self) -> ERacun:
         """Assemble the `ERacun`; raises Pydantic errors for anything missing."""
-        return ERacun(**self._data, stavke=tuple(self._stavke))
+        return ERacun(
+            **self._data,
+            stavke=tuple(self._stavke),
+            prethodni_racuni=tuple(self._prethodni),
+        )
 
     def to_xml(self) -> etree._Element:
         """Convenience: ``build()`` then serialise."""

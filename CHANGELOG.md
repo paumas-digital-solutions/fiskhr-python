@@ -19,6 +19,18 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Credit notes (odobrenje, UNCL 1001 type 381): `ERacunBuilder.odobrenje()`
+  marks the document and references the corrected invoice; type 381
+  serialises as a UBL **CreditNote** (`CreditNoteTypeCode`,
+  `CreditNoteLine`/`CreditedQuantity`, due date via
+  `PaymentMeans/PaymentDueDate`) and passes the full official validation
+  with zero findings. Preceding-invoice references (BG-3,
+  `BillingReference`, HR-BR-6) are available on all document types via
+  `.prethodni_racun()` and flow into the eFiskalizacija digest. KPD codes
+  are now optional exactly on the document types HR-BR-25 exempts (381,
+  386, …) and enforced at model level otherwise; credit notes don't
+  require a due date (HR-BR-4 negates their payable amount).
+
 - `fiskalhr.f2.izvjestavanje` — payment and rejection reporting:
   `EIzvjestavanjeClient.evidentiraj_naplatu` (issuer reports collections;
   `Naplata.za_eracun` fills the eRačun identifier from the UBL model and

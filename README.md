@@ -155,6 +155,11 @@ suite guarantees built invoices pass the complete official validation with
 zero findings — Schematron included (install the `fiskalhr[validation]`
 extra for that part).
 
+Credit notes are one call away — `.odobrenje("2026-42-P1-1", date(2026, 8, 13))`
+references the corrected invoice and switches the output to a UBL
+CreditNote, with the HR rule differences (optional KPD, no due date)
+handled for you.
+
 Reporting the invoice to the Tax Administration (eFiskalizacija) works
 straight from the same model — the reported digest is derived from it, and
 the request is signed with the XAdES-B profile the service requires:

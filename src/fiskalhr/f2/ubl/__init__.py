@@ -13,6 +13,7 @@ from fiskalhr.f2.ubl.models import (
     ERacun,
     KategorijaPdv,
     Operater,
+    PrethodniRacun,
     Stavka,
     Stranka,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "ERacunBuilder",
     "KategorijaPdv",
     "Operater",
+    "PrethodniRacun",
     "Stavka",
     "Stranka",
     "to_xml",

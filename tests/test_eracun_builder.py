@@ -98,6 +98,47 @@ def test_multi_rate_invoice_passes_full_validation() -> None:
     assert racun.ukupno_s_pdv == Decimal("202.78")
 
 
+@needs_saxon
+def test_odobrenje_passes_full_validation() -> None:
+    """A credit note (381) serialises as a UBL CreditNote: no KPD or due
+    date required, preceding-invoice reference carried (HR-BR-6/25/4)."""
+    builder = (
+        ERacunBuilder()
+        .izdavatelj(
+            oib=OIB_IZDAVATELJ,
+            naziv="Paumas j.d.o.o.",
+            ulica="Ulica 1",
+            grad="Zagreb",
+            postanski_broj="10000",
+        )
+        .primatelj(
+            oib=OIB_PRIMATELJ,
+            naziv="Kupac d.o.o.",
+            ulica="Ulica 2",
+            grad="Rijeka",
+            postanski_broj="51000",
+        )
+        .operater(oib=OIB_OPERATER, oznaka="Operater1")
+        .broj("2026-43-P1-1")
+        .datum_izdavanja(date(2026, 8, 20), time(9, 0, 0))
+        .odobrenje("2026-42-P1-1", date(2026, 8, 13))
+        .placanje(iban="HR1210010051863000160")
+        .stavka(naziv="Storno licence", kolicina=1, cijena="100.00", pdv_stopa=25)
+    )
+    racun = builder.build()
+    xml = to_xml(racun)
+
+    assert etree.QName(xml).localname == "CreditNote"
+    report = validate(etree.tostring(xml))
+    assert report.schematron_ran
+    assert report.findings == (), [f"{f.rule}: {f.message}" for f in report.findings]
+
+
+def test_kpd_required_for_regular_invoice_only() -> None:
+    with pytest.raises(ValidationError, match="HR-BR-25"):
+        _builder().stavka(naziv="Bez KPD", kolicina=1, cijena="1.00", pdv_stopa=25).build()
+
+
 def test_totals_group_by_category_and_rate() -> None:
     racun = (
         _builder()

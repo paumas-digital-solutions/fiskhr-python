@@ -23,11 +23,14 @@ from fiskalhr.core.types import validate_oib
 
 __all__ = [
     "CUSTOMIZATION_ID",
+    "KPD_EXEMPT_VRSTE",
+    "ODOBRENJE",
     "PROFIL_P1",
     "Adresa",
     "ERacun",
     "KategorijaPdv",
     "Operater",
+    "PrethodniRacun",
     "Stavka",
     "Stranka",
     "hr_oznaka",
@@ -44,6 +47,15 @@ PROFIL_P1 = "P1"
 
 OIB_ENDPOINT_SCHEME = "9934"
 """``EndpointID/@schemeID`` for Croatian OIB electronic addresses."""
+
+ODOBRENJE = "381"
+"""UNCL 1001 code for a credit note."""
+
+KPD_EXEMPT_VRSTE = frozenset(
+    {"81", "83", "261", "262", "296", "308", "381", "386", "396", "420", "458", "532"}
+)
+"""Document types HR-BR-25 exempts from the per-item KPD requirement
+(credit notes, advance invoices, corrections, …)."""
 
 Oib = Annotated[str, AfterValidator(validate_oib)]
 
@@ -123,18 +135,30 @@ class Operater(_Model):
     oznaka: str = Field(min_length=1)
 
 
+class PrethodniRacun(_Model):
+    """Reference to a preceding invoice (BG-3), e.g. the invoice a credit
+    note corrects. Both fields are mandatory per HR-BR-6."""
+
+    broj: str = Field(min_length=1)
+    """Preceding invoice number (BT-25)."""
+    datum_izdavanja: date
+    """Preceding invoice issue date (BT-26)."""
+
+
 class Stavka(_Model):
     """One invoice line (BG-25).
 
     ``kpd`` is the Klasifikacija proizvoda po djelatnostima code, mandatory
-    for every item per HR-BR-25 (``ItemClassificationCode listID="CG"``).
+    for every item per HR-BR-25 (``ItemClassificationCode listID="CG"``) —
+    except on document types the rule exempts (credit notes, advance
+    invoices, …), which `ERacun` enforces with the document context.
     """
 
     naziv: str = Field(min_length=1, max_length=1023)
     kolicina: Decimal
     cijena: Decimal
     """Net unit price (BT-146)."""
-    kpd: str = Field(min_length=1)
+    kpd: str | None = Field(default=None, min_length=1)
     pdv_stopa: Decimal = Decimal("0")
     kategorija: KategorijaPdv = KategorijaPdv.STANDARDNA
     razlog_oslobodjenja: str | None = None
@@ -196,14 +220,38 @@ class ERacun(_Model):
     napomena: str | None = None
     profil: str = PROFIL_P1
     vrsta: str = "380"
-    """UNCL 1001 invoice type (380 commercial invoice)."""
+    """UNCL 1001 document type: 380 commercial invoice, 381 credit note
+    (odobrenje — serialised as a UBL CreditNote), 386 advance invoice."""
+    prethodni_racuni: tuple[PrethodniRacun, ...] = ()
+    """Preceding-invoice references (BG-3, ``BillingReference``)."""
+
+    @property
+    def je_odobrenje(self) -> bool:
+        """True for a credit note (381), serialised as a UBL CreditNote."""
+        return self.vrsta == ODOBRENJE
 
     @model_validator(mode="after")
     def _due_date_when_payable(self) -> ERacun:
+        # HR-BR-4 negates the payable amount for credit notes, so a credit
+        # never requires a due date.
+        if self.je_odobrenje:
+            return self
         if self.ukupno_s_pdv > 0 and self.datum_dospijeca is None:
             raise ValueError(
                 "datum_dospijeca is required when the payable amount is positive (HR-BR-4)"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _kpd_when_required(self) -> ERacun:
+        if self.vrsta in KPD_EXEMPT_VRSTE:
+            return self
+        for index, stavka in enumerate(self.stavke, start=1):
+            if stavka.kpd is None:
+                raise ValueError(
+                    f"stavka {index} ({stavka.naziv!r}) needs a kpd code — mandatory "
+                    f"for document type {self.vrsta} (HR-BR-25)"
+                )
         return self
 
     @property

@@ -221,6 +221,10 @@ class EvidencijaERacun(_Model):
             datum_dospijeca=racun.datum_dospijeca,
             vrsta_poslovnog_procesa=racun.profil,
             datum_isporuke=racun.datum_isporuke,
+            prethodni_eracuni=tuple(
+                PrethodniERacun(broj=p.broj, datum_izdavanja=p.datum_izdavanja)
+                for p in racun.prethodni_racuni
+            ),
             izdavatelj=Izdavatelj(
                 ime=racun.izdavatelj.naziv,
                 oib=racun.izdavatelj.oib,
