@@ -14,7 +14,9 @@
 > certificates, offline ZKI, XML-DSig, SOAP transport, `FiskalizacijaClient`,
 > and a mock CIS server for offline testing. On the F2 side, `ERacunBuilder`
 > produces UBL 2.1 invoices that pass the complete official validation (XSD
-> plus the full HR CIUS 2025 Schematron) with zero findings.
+> plus the full HR CIUS 2025 Schematron) with zero findings, and
+> `EFiskalizacijaClient` reports them to the Tax Administration with
+> XAdES-B-signed `EvidentirajERacun` messages.
 > Demo-environment validation is the next milestone; see the
 > [roadmap](#roadmap). Nothing is API-stable before v1.0.
 >
@@ -152,6 +154,25 @@ fail at construction time with the HR rule id in the message. The test
 suite guarantees built invoices pass the complete official validation with
 zero findings — Schematron included (install the `fiskalhr[validation]`
 extra for that part).
+
+Reporting the invoice to the Tax Administration (eFiskalizacija) works
+straight from the same model — the reported digest is derived from it, and
+the request is signed with the XAdES-B profile the service requires:
+
+```python
+from fiskalhr import Certificate, Environment
+from fiskalhr.f2.fiskalizacija import EFiskalizacijaClient
+
+cert = Certificate.from_p12("FISKAL.p12", password="...")
+client = EFiskalizacijaClient(cert, env=Environment.DEMO)
+
+odgovor = client.evidentiraj_izlazni(eracun.build())  # as the issuer
+print(odgovor.id_zahtjeva)  # server-assigned request UUID
+```
+
+For offline testing there is `fiskalhr.testing.MockEFiskalizacija`, the F2
+counterpart of `MockCis`: it XSD-validates requests, verifies your XAdES
+signature, and answers with signed responses.
 
 ## Scope
 

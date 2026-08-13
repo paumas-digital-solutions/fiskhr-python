@@ -19,6 +19,23 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.fiskalizacija` — the F2 reporting leg (`EvidentirajERacun`):
+  `EFiskalizacijaClient` reports outgoing/incoming eRačuni directly to the
+  Tax Administration's eFiskalizacija service (no intermediary needed for
+  reporting), 1–100 records per call. `EvidencijaERacun.from_eracuna`
+  derives the reported digest (identifiers, parties, totals, VAT breakdown
+  with HR category marks, per-line data with KPD) from the same
+  `fiskalhr.f2.ubl.ERacun` model that produced the UBL document, so the
+  report matches the invoice by construction. Requests are signed with
+  **XAdES-B** (ETSI EN 319 132-1) enveloped signatures per spec ch. 11 —
+  new `fiskalhr.core.xades` module, with the wire format pinned by tests
+  (two references, enveloped-signature + exc-c14n, RSA-SHA256,
+  `SigningCertificateV2`); response signatures are verified by default.
+  Endpoints (`:8509`, test path `FiskalizacijaServiceEprod`) in
+  `fiskalhr.f2.service`; error table `S001`–`S012` verbatim from the
+  schema. `fiskalhr.testing.MockEFiskalizacija` answers with XSD-validated,
+  signature-verified, signed responses for offline end-to-end testing.
+
 - `fiskalhr.f2.ubl` — eRačun construction: `ERacunBuilder` (fluent API),
   Pydantic models (`ERacun`, `Stavka`, `Stranka`, `Operater`,
   `KategorijaPdv`) and `to_xml()` producing UBL 2.1 Invoices under HR CIUS

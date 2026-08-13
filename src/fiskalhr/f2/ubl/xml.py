@@ -20,6 +20,7 @@ from fiskalhr.f2.ubl.models import (
     ERacun,
     KategorijaPdv,
     Stranka,
+    hr_oznaka,
 )
 
 __all__ = ["to_xml"]
@@ -49,23 +50,6 @@ _NSMAP = cast(
 _HR_EXTENSION_CATEGORIES = (KategorijaPdv.OSLOBODJENO, KategorijaPdv.NE_PODLIJEZE)
 """Categories whose presence requires the HRFISK20Data extension (HR-BR-26,
 HR-BR-29/32); mirrors which official examples carry the extension."""
-
-_HR_OZNAKE = {
-    KategorijaPdv.NULTA_STOPA: "HR:Z",
-    KategorijaPdv.OSLOBODJENO: "HR:E",
-    KategorijaPdv.PRIJENOS_POREZNE_OBVEZE: "HR:AE",
-    KategorijaPdv.NE_PODLIJEZE: "HR:O",
-}
-
-
-def _hr_oznaka(kategorija: KategorijaPdv, stopa: Decimal) -> str | None:
-    """HR VAT category mark (HR-BT-12), mandatory for E/O lines (HR-BR-16)
-    and constrained to the HR:* codelist; for standard-rated lines it encodes
-    the rate (HR:PDV25/13/5), so an off-list rate yields no mark."""
-    if kategorija is KategorijaPdv.STANDARDNA:
-        oznaka = f"HR:PDV{_broj(stopa)}"
-        return oznaka if oznaka in ("HR:PDV25", "HR:PDV13", "HR:PDV5") else None
-    return _HR_OZNAKE[kategorija]
 
 
 def _iznos(value: Decimal) -> str:
@@ -111,7 +95,7 @@ def _hrfisk20_extension(extensions: etree._Element, racun: ERacun) -> None:
         _cbc(subtotal, "TaxAmount", _iznos(iznos_pdv), currencyID=racun.valuta)
         category = etree.SubElement(subtotal, f"{{{HREXTAC}}}HRTaxCategory")
         _cbc(category, "ID", kategorija.value)
-        oznaka = _hr_oznaka(kategorija, stopa)
+        oznaka = hr_oznaka(kategorija, stopa)
         if oznaka is not None:
             _cbc(category, "Name", oznaka)
         _cbc(category, "Percent", _broj(stopa))
@@ -240,7 +224,7 @@ def to_xml(racun: ERacun) -> etree._Element:
         _cbc(classification, "ItemClassificationCode", stavka.kpd, listID="CG")
         category = _cac(item, "ClassifiedTaxCategory")
         _cbc(category, "ID", stavka.kategorija.value)
-        oznaka = _hr_oznaka(stavka.kategorija, stavka.pdv_stopa)
+        oznaka = hr_oznaka(stavka.kategorija, stavka.pdv_stopa)
         if oznaka is not None:
             _cbc(category, "Name", oznaka)
         _cbc(category, "Percent", _broj(stavka.pdv_stopa))

@@ -18,7 +18,8 @@ src/fiskalhr/
 │   ├── errors.py         # exception hierarchy                     [done]
 │   ├── signing.py        # SignatureMethod (SHA-256/SHA-1 timeline)[done]
 │   ├── types.py          # OIB validation, shared value objects    [done]
-│   ├── xmldsig.py        # enveloped signature create + verify     [done]
+│   ├── xmldsig.py        # enveloped signature create + verify (F1)[done]
+│   ├── xades.py          # XAdES-B enveloped signatures (F2)       [done]
 │   └── transport.py      # SOAP 1.1 client, TLS 1.2+, retries      [done]
 │
 ├── f1/                   # Fiskalizacija 1.0 — B2C, CIS
@@ -34,13 +35,14 @@ src/fiskalhr/
 ├── f2/                   # Fiskalizacija 2.0 — eRačun              [Phase 2+]
 │   ├── ubl/              # UBL 2.1 builder, BT-/BG- models, CIUS rules [done]
 │   ├── validation/       # XSD + Schematron, structured reports    [done]
-│   ├── fiskalizacija.py  # EvidentirajERacun
+│   ├── fiskalizacija/    # EvidentirajERacun (XAdES-B, direct)     [done]
 │   ├── izvjestavanje.py  # EvidentirajNaplatu, EvidentirajOdbijanje
 │   ├── posrednik/        # delivery adapters (base protocol + FINA)
 │   └── schemas/
 │
 ├── testing/              # public test utilities for downstream users
-│   ├── mock_cis.py       # XSD-validating, response-signing mock   [done]
+│   ├── mock_cis.py       # F1 mock: XSD-validating, response-signing [done]
+│   ├── mock_efiskalizacija.py  # F2 reporting mock (XAdES)         [done]
 │   └── fixtures.py
 │
 └── cli.py                # cert info, zki, echo                    [growing]

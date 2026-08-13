@@ -30,6 +30,7 @@ __all__ = [
     "Operater",
     "Stavka",
     "Stranka",
+    "hr_oznaka",
 ]
 
 CUSTOMIZATION_ID = (
@@ -59,6 +60,25 @@ class KategorijaPdv(enum.StrEnum):
     OSLOBODJENO = "E"
     PRIJENOS_POREZNE_OBVEZE = "AE"
     NE_PODLIJEZE = "O"
+
+
+_HR_OZNAKE = {
+    KategorijaPdv.NULTA_STOPA: "HR:Z",
+    KategorijaPdv.OSLOBODJENO: "HR:E",
+    KategorijaPdv.PRIJENOS_POREZNE_OBVEZE: "HR:AE",
+    KategorijaPdv.NE_PODLIJEZE: "HR:O",
+}
+
+
+def hr_oznaka(kategorija: KategorijaPdv, stopa: Decimal) -> str | None:
+    """HR VAT category mark (HR-BT-12 / HR-BT-22), constrained to the HR:*
+    codelist; mandatory for E/O lines (HR-BR-16). For standard-rated lines
+    it encodes the rate (HR:PDV25/13/5), so an off-list rate yields no mark.
+    """
+    if kategorija is KategorijaPdv.STANDARDNA:
+        oznaka = f"HR:PDV{format(stopa.normalize(), 'f')}"
+        return oznaka if oznaka in ("HR:PDV25", "HR:PDV13", "HR:PDV5") else None
+    return _HR_OZNAKE[kategorija]
 
 
 class _Model(BaseModel):

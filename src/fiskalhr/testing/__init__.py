@@ -1,10 +1,12 @@
 """Public test utilities for downstream users of `fiskalhr`.
 
-`MockCis` lets you test your F1 integration end to end — including request
-validation and response-signature verification — without ever touching the
-demo environment or owning a FINA certificate.
+`MockCis` (F1) and `MockEFiskalizacija` (F2) let you test your integration
+end to end — including request validation and response-signature
+verification — without ever touching the demo environments or owning a
+FINA certificate.
 """
 
 from fiskalhr.testing.mock_cis import MockCis
+from fiskalhr.testing.mock_efiskalizacija import MockEFiskalizacija
 
-__all__ = ["MockCis"]
+__all__ = ["MockCis", "MockEFiskalizacija"]
