@@ -19,6 +19,16 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Vendored the complete F2 (Fiskalizacija 2.0 / eRačun) specification set
+  from the Tax Administration: HR CIUS 2025 + ext-2025 spec, **HR Schematron
+  1.0.0** (13.03.2026, XSLT 2.0 binding), UBL 2.1 XSDs with the HR extension
+  schema, eFiskalizacija / eIzvještavanje / LIPO service schemas and WSDLs,
+  the F2, AMS, AS4 and ApplicationResponse specification PDFs, and the
+  official example corpora (20 eRačuni, 13 signed fiscalization messages,
+  eIzvještavanje samples) as the start of the conformance corpus. All
+  recorded in `docs/specs/SOURCES.md`, including known defects in the
+  shipped examples.
+
 - `fiskalhr.f1.radno_vrijeme` — working-hours registration (schema v1.10):
   models for the full schedule structure (`Redovno` with `PoDogovoru` /
   `Jednokratno` / `Dvokratno` / `ParniNeparni`, exceptions, deletion), the
