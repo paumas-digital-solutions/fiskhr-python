@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from fiskalhr.cli import main
-from fiskalhr.f2.validation.schematron import schematron_available
+from fiskhr.cli import main
+from fiskhr.f2.validation.schematron import schematron_available
 
 CORPUS = Path("tests/conformance/f2/eracuni")
 
 needs_saxon = pytest.mark.skipif(
-    not schematron_available(), reason="saxonche (fiskalhr[validation]) not installed"
+    not schematron_available(), reason="saxonche (fiskhr[validation]) not installed"
 )
 
 

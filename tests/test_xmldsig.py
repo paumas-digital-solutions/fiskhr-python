@@ -4,10 +4,10 @@ import pytest
 from cryptography import x509
 from lxml import etree
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.errors import SignatureVerificationError
-from fiskalhr.core.signing import SignatureMethod
-from fiskalhr.core.xmldsig import sign_enveloped, verify_enveloped
+from fiskhr.core.certs import Certificate
+from fiskhr.core.errors import SignatureVerificationError
+from fiskhr.core.signing import SignatureMethod
+from fiskhr.core.xmldsig import sign_enveloped, verify_enveloped
 from tests.conftest import TEST_OIB, make_rsa_key, make_self_signed_cert
 
 DS = "{http://www.w3.org/2000/09/xmldsig#}"

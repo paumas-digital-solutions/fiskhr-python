@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fiskalhr.core.environment import Environment
-from fiskalhr.f1.error_codes import CIS_ERROR_MESSAGES
-from fiskalhr.f1.service import SCHEMA_VERSION, SERVICE_URLS, schema_dir
+from fiskhr.core.environment import Environment
+from fiskhr.f1.error_codes import CIS_ERROR_MESSAGES
+from fiskhr.f1.service import SCHEMA_VERSION, SERVICE_URLS, schema_dir
 
 
 def test_every_environment_has_a_service_url() -> None:

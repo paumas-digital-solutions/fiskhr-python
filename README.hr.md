@@ -1,4 +1,4 @@
-# fiskalhr
+# fiskhr
 
 **Hrvatska fiskalizacija za Python — oba sustava, jedna biblioteka.**
 

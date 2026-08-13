@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from fiskalhr.cli import PASSWORD_ENV_VAR, main
-from fiskalhr.core.certs import Certificate
-from fiskalhr.f1.zki import izracunaj_zki
+from fiskhr.cli import PASSWORD_ENV_VAR, main
+from fiskhr.core.certs import Certificate
+from fiskhr.f1.zki import izracunaj_zki
 from tests.conftest import TEST_OIB, TEST_P12_PASSWORD
 
 

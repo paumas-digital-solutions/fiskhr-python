@@ -10,9 +10,9 @@ import pytest
 from lxml import etree
 from pydantic import ValidationError
 
-from fiskalhr.f2.ubl import ERacunBuilder, KategorijaPdv, to_xml
-from fiskalhr.f2.validation import validate
-from fiskalhr.f2.validation.schematron import schematron_available
+from fiskhr.f2.ubl import ERacunBuilder, KategorijaPdv, to_xml
+from fiskhr.f2.validation import validate
+from fiskhr.f2.validation.schematron import schematron_available
 
 # Checksum-valid synthetic OIBs (see tests/conftest.py for the primary one).
 OIB_IZDAVATELJ = "12345678903"
@@ -20,7 +20,7 @@ OIB_PRIMATELJ = "00000000001"
 OIB_OPERATER = "12345678903"
 
 needs_saxon = pytest.mark.skipif(
-    not schematron_available(), reason="saxonche (fiskalhr[validation]) not installed"
+    not schematron_available(), reason="saxonche (fiskhr[validation]) not installed"
 )
 
 

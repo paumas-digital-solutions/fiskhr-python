@@ -16,19 +16,19 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from lxml import etree
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.errors import CisError, SignatureVerificationError, TransportError
-from fiskalhr.core.transport import unwrap_soap, wrap_soap
-from fiskalhr.core.xades import sign_xades_enveloped, verify_xades_enveloped
-from fiskalhr.f2.fiskalizacija import (
+from fiskhr.core.certs import Certificate
+from fiskhr.core.errors import CisError, SignatureVerificationError, TransportError
+from fiskhr.core.transport import unwrap_soap, wrap_soap
+from fiskhr.core.xades import sign_xades_enveloped, verify_xades_enveloped
+from fiskhr.f2.fiskalizacija import (
     EFiskalizacijaClient,
     EvidencijaERacun,
     VrstaERacuna,
     build_evidentiraj_eracun_zahtjev,
 )
-from fiskalhr.f2.service import efiskalizacija_schema_path
-from fiskalhr.f2.ubl import ERacunBuilder, KategorijaPdv
-from fiskalhr.testing import MockEFiskalizacija
+from fiskhr.f2.service import efiskalizacija_schema_path
+from fiskhr.f2.ubl import ERacunBuilder, KategorijaPdv
+from fiskhr.testing import MockEFiskalizacija
 from tests.conftest import make_self_signed_cert
 
 DS_NS = "http://www.w3.org/2000/09/xmldsig#"

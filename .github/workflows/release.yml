@@ -5,7 +5,7 @@
 # required-reviewer rule in the repo settings as an extra gate.
 #
 # Releasing (see CONTRIBUTING.md):
-#   1. bump __version__ in src/fiskalhr/__init__.py (the single source)
+#   1. bump __version__ in src/fiskhr/__init__.py (the single source)
 #   2. move the CHANGELOG "Unreleased" entries under the new version
 #   3. commit, tag `vX.Y.Z`, push the tag
 name: Release
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/fiskalhr/
+      url: https://pypi.org/project/fiskhr/
     permissions:
       # Trusted publishing: PyPI trusts this workflow's OIDC identity
       # (repository + workflow file + environment), so no token exists.

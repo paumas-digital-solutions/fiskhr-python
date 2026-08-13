@@ -1,4 +1,4 @@
-# Contributing to fiskalhr
+# Contributing to fiskhr
 
 Thanks for considering a contribution! This document covers setup, the rules
 that keep the codebase consistent, and what makes a PR easy to merge.
@@ -61,7 +61,7 @@ repository or its CI, and none may ever be added.
 
 To cut a release:
 
-1. Bump `__version__` in `src/fiskalhr/__init__.py` — the single source of
+1. Bump `__version__` in `src/fiskhr/__init__.py` — the single source of
    truth (`pyproject.toml` reads it via `[tool.hatch.version]`).
 2. Move the `Unreleased` entries in `CHANGELOG.md` under the new version
    heading, with the date and the targeted spec/schema revisions.

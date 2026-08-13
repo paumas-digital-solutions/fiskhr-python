@@ -1,4 +1,4 @@
-# fiskalhr
+# fiskhr
 
 [![CI](https://github.com/paumas-digital-solutions/fiskhr-python/actions/workflows/ci.yml/badge.svg)](https://github.com/paumas-digital-solutions/fiskhr-python/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -39,7 +39,7 @@ certificates but nothing else. This library models that separation honestly.
 | Who | Anyone issuing cash/card receipts | VAT payers since 1 Jan 2026; **everyone else from 1 Jan 2027** |
 | Wire format | Custom XML over SOAP to CIS | UBL 2.1 (EN 16931 + HR CIUS 2025) + fiscalization messages |
 | Key artifacts | ZKI, JIR | eRačun XML, KPD codes, delivery via posrednik |
-| In this library | `fiskalhr.f1` | `fiskalhr.f2` |
+| In this library | `fiskhr.f1` | `fiskhr.f2` |
 
 If you run a POS or issue receipts to consumers, you need F1. If you invoice
 other businesses, you need F2. Many businesses need both.
@@ -47,7 +47,7 @@ other businesses, you need F2. Many businesses need both.
 ## Install
 
 ```bash
-pip install fiskalhr   # placeholder release — pin only from v0.1.0 onward
+pip install fiskhr   # placeholder release — pin only from v0.1.0 onward
 ```
 
 Requires Python 3.11+.
@@ -58,8 +58,8 @@ Requires Python 3.11+.
 from datetime import datetime
 from decimal import Decimal
 
-from fiskalhr import Certificate, Environment
-from fiskalhr.f1 import (
+from fiskhr import Certificate, Environment
+from fiskhr.f1 import (
     BrojRacuna,
     FiskalizacijaClient,
     NacinPlacanja,
@@ -93,7 +93,7 @@ Test your integration without the demo environment or a FINA certificate —
 the mock validates requests against the official XSD and signs its responses:
 
 ```python
-from fiskalhr.testing import MockCis
+from fiskhr.testing import MockCis
 
 mock = MockCis()  # or MockCis(force_greske=("s004",))
 client = FiskalizacijaClient(cert, transport=mock.transport())
@@ -103,13 +103,13 @@ odgovor = client.fiskaliziraj(racun)  # never leaves the process
 And from the terminal:
 
 ```bash
-fiskalhr cert info FISKAL_1.p12    # password prompted, never a CLI argument
-fiskalhr zki FISKAL_1.p12 --oib ... --datum-vrijeme '13.08.2026 12:00:00' \
+fiskhr cert info FISKAL_1.p12    # password prompted, never a CLI argument
+fiskhr zki FISKAL_1.p12 --oib ... --datum-vrijeme '13.08.2026 12:00:00' \
     --br-ozn-rac 1 --ozn-pos-pr POSL1 --ozn-nap-ur 12 --iznos 125.00
-fiskalhr echo --env demo           # CIS connectivity test
-fiskalhr validate racun.xml        # XSD + full HR CIUS 2025 Schematron
-fiskalhr validate racun.xml --json # machine-readable, for CI pipelines
-fiskalhr ovlastenja FISKAL.p12     # which OIBs may this certificate report for (F2)
+fiskhr echo --env demo           # CIS connectivity test
+fiskhr validate racun.xml        # XSD + full HR CIUS 2025 Schematron
+fiskhr validate racun.xml --json # machine-readable, for CI pipelines
+fiskhr ovlastenja FISKAL.p12     # which OIBs may this certificate report for (F2)
 ```
 
 The CLI is deliberately diagnostic-only: it inspects, computes, validates,
@@ -123,8 +123,8 @@ from datetime import date, time
 
 from lxml import etree
 
-from fiskalhr.f2.ubl import ERacunBuilder
-from fiskalhr.f2.validation import validate
+from fiskhr.f2.ubl import ERacunBuilder
+from fiskhr.f2.validation import validate
 
 eracun = (
     ERacunBuilder()
@@ -162,7 +162,7 @@ line items — you never supply them. Invalid combinations (a standard-rated
 line with 0 % PDV, an exempt line without a reason, a bad OIB checksum)
 fail at construction time with the HR rule id in the message. The test
 suite guarantees built invoices pass the complete official validation with
-zero findings — Schematron included (install the `fiskalhr[validation]`
+zero findings — Schematron included (install the `fiskhr[validation]`
 extra for that part).
 
 Credit notes are one call away — `.odobrenje("2026-42-P1-1", date(2026, 8, 13))`
@@ -177,8 +177,8 @@ straight from the same model — the reported digest is derived from it, and
 the request is signed with the XAdES-B profile the service requires:
 
 ```python
-from fiskalhr import Certificate, Environment
-from fiskalhr.f2.fiskalizacija import EFiskalizacijaClient
+from fiskhr import Certificate, Environment
+from fiskhr.f2.fiskalizacija import EFiskalizacijaClient
 
 cert = Certificate.from_p12("FISKAL.p12", password="...")
 client = EFiskalizacijaClient(cert, env=Environment.DEMO)
@@ -193,13 +193,13 @@ by its identifier (filled in from the model for you):
 ```python
 from datetime import date
 
-from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient, Naplata
+from fiskhr.f2.izvjestavanje import EIzvjestavanjeClient, Naplata
 
 izvj = EIzvjestavanjeClient(cert, env=Environment.DEMO)
 izvj.evidentiraj_naplatu(Naplata.za_eracun(eracun.build(), datum_naplate=date(2026, 9, 1)))
 ```
 
-For offline testing there are `fiskalhr.testing.MockEFiskalizacija` and
+For offline testing there are `fiskhr.testing.MockEFiskalizacija` and
 `MockEIzvjestavanje`, the F2 counterparts of `MockCis`: they XSD-validate
 requests, verify your XAdES signature, and answer with signed responses.
 

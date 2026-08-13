@@ -411,7 +411,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fiskalhr"
+name = "fiskhr"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

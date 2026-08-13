@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from fiskalhr.core.errors import FiskalizacijaError
-from fiskalhr.f2.validation import Severity, validate
-from fiskalhr.f2.validation.schematron import schematron_available
+from fiskhr.core.errors import FiskalizacijaError
+from fiskhr.f2.validation import Severity, validate
+from fiskhr.f2.validation.schematron import schematron_available
 
 CORPUS = Path("tests/conformance/f2/eracuni")
 
@@ -26,7 +26,7 @@ CORPUS = Path("tests/conformance/f2/eracuni")
 KNOWN_EXAMPLE_QUIRKS = {"HR-BR-9", "HR-BR-25", "HR-BR-40", "HR-BR-53"}
 
 needs_saxon = pytest.mark.skipif(
-    not schematron_available(), reason="saxonche (fiskalhr[validation]) not installed"
+    not schematron_available(), reason="saxonche (fiskhr[validation]) not installed"
 )
 
 

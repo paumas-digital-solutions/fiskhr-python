@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.errors import CertificateError
+from fiskhr.core.certs import Certificate
+from fiskhr.core.errors import CertificateError
 from tests.conftest import TEST_OIB, TEST_P12_PASSWORD
 
 

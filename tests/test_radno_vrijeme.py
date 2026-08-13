@@ -5,9 +5,9 @@ from datetime import date, datetime
 import pytest
 from lxml import etree
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.xmldsig import sign_enveloped
-from fiskalhr.f1.radno_vrijeme import (
+from fiskhr.core.certs import Certificate
+from fiskhr.core.xmldsig import sign_enveloped
+from fiskhr.f1.radno_vrijeme import (
     BrisanjeRadnogVremena,
     DanUTjednu,
     DioDvokratnog,
@@ -29,7 +29,7 @@ from fiskalhr.f1.radno_vrijeme import (
     build_prijavi_radno_vrijeme_zahtjev,
     parse_dohvati_radno_vrijeme_odgovor,
 )
-from fiskalhr.f1.service import schema_dir
+from fiskhr.f1.service import schema_dir
 from tests.conftest import TEST_OIB, make_rsa_key, make_self_signed_cert
 
 MESSAGE_TIME = datetime(2026, 8, 12, 9, 0, 0)
@@ -146,8 +146,8 @@ def test_prijavi_za_poslovnice_validates_against_official_xsd(
 
 
 def test_prijavi_za_poslovnice_end_to_end(signer_cert: Certificate) -> None:
-    from fiskalhr.f1.client import FiskalizacijaClient
-    from fiskalhr.testing import MockCis
+    from fiskhr.f1.client import FiskalizacijaClient
+    from fiskhr.testing import MockCis
 
     mock = MockCis()
     client = FiskalizacijaClient(signer_cert, transport=mock.transport())

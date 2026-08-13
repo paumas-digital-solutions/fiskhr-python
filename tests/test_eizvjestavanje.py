@@ -12,11 +12,11 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from lxml import etree
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.errors import CisError
-from fiskalhr.core.xades import sign_xades_enveloped
-from fiskalhr.f2.fiskalizacija import EvidencijaERacun
-from fiskalhr.f2.izvjestavanje import (
+from fiskhr.core.certs import Certificate
+from fiskhr.core.errors import CisError
+from fiskhr.core.xades import sign_xades_enveloped
+from fiskhr.f2.fiskalizacija import EvidencijaERacun
+from fiskhr.f2.izvjestavanje import (
     EIzvjestavanjeClient,
     NacinPlacanjaNaplate,
     Naplata,
@@ -27,9 +27,9 @@ from fiskalhr.f2.izvjestavanje import (
     build_evidentiraj_odbijanje_zahtjev,
     build_ovlastenja_zahtjev,
 )
-from fiskalhr.f2.service import eizvjestavanje_schema_path
-from fiskalhr.f2.ubl import ERacun, ERacunBuilder
-from fiskalhr.testing import MockEIzvjestavanje
+from fiskhr.f2.service import eizvjestavanje_schema_path
+from fiskhr.f2.ubl import ERacun, ERacunBuilder
+from fiskhr.testing import MockEIzvjestavanje
 from tests.conftest import make_self_signed_cert
 
 SLANJE = datetime(2026, 8, 13, 14, 30, 0, 0)

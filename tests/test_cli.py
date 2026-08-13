@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from fiskalhr import __version__
-from fiskalhr.cli import PASSWORD_ENV_VAR, main
+from fiskhr import __version__
+from fiskhr.cli import PASSWORD_ENV_VAR, main
 from tests.conftest import TEST_OIB, TEST_P12_PASSWORD
 
 
@@ -36,8 +36,8 @@ def test_ovlastenja_lists_oibi(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient
-    from fiskalhr.testing import MockEIzvjestavanje
+    from fiskhr.f2.izvjestavanje import EIzvjestavanjeClient
+    from fiskhr.testing import MockEIzvjestavanje
 
     monkeypatch.setenv(PASSWORD_ENV_VAR, TEST_P12_PASSWORD)
     mock = MockEIzvjestavanje(ovlasteni_oibi=(TEST_OIB, "00000000001"))

@@ -13,16 +13,16 @@ from decimal import Decimal
 
 import pytest
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.environment import Environment
-from fiskalhr.core.errors import (
+from fiskhr.core.certs import Certificate
+from fiskhr.core.environment import Environment
+from fiskhr.core.errors import (
     CisError,
     FiskalizacijaError,
     SignatureVerificationError,
     TransportError,
 )
-from fiskalhr.f1.client import FiskalizacijaClient
-from fiskalhr.f1.models import (
+from fiskhr.f1.client import FiskalizacijaClient
+from fiskhr.f1.models import (
     BrojRacuna,
     NacinPlacanja,
     Napojnica,
@@ -30,13 +30,13 @@ from fiskalhr.f1.models import (
     Porez,
     Racun,
 )
-from fiskalhr.f1.radno_vrijeme import (
+from fiskhr.f1.radno_vrijeme import (
     BrisanjeRadnogVremena,
     PoDogovoru,
     RadnoVrijeme,
     Redovno,
 )
-from fiskalhr.testing import MockCis
+from fiskhr.testing import MockCis
 from tests.conftest import TEST_OIB, make_rsa_key, make_self_signed_cert
 
 

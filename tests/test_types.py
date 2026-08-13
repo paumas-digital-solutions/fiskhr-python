@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from fiskalhr.core.errors import InvalidOibError
-from fiskalhr.core.types import is_valid_oib, oib_check_digit, validate_oib
+from fiskhr.core.errors import InvalidOibError
+from fiskhr.core.types import is_valid_oib, oib_check_digit, validate_oib
 
 KNOWN_VALID_OIBS = [
     "81793146560",  # Hrvatski Telekom d.d.

@@ -1,4 +1,4 @@
-# fiskalhr — instructions for Claude Code
+# fiskhr — instructions for Claude Code
 
 ## Git conventions
 

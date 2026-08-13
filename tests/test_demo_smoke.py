@@ -3,9 +3,9 @@
 Never run in CI (no secrets there, ever). Run locally with FINA demo
 certificates:
 
-    export FISKALHR_DEMO_P12=/path/to/fiskalDemo.p12
-    export FISKALHR_DEMO_P12_PASSWORD=...
-    export FISKALHR_DEMO_OIB=...        # the OIB the demo cert is issued to
+    export FISKHR_DEMO_P12=/path/to/fiskalDemo.p12
+    export FISKHR_DEMO_P12_PASSWORD=...
+    export FISKHR_DEMO_OIB=...        # the OIB the demo cert is issued to
     make smoke-test
 
 Getting a JIR back here is the v0.1 milestone.
@@ -19,16 +19,16 @@ from decimal import Decimal
 
 import pytest
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.environment import Environment
-from fiskalhr.f1.client import FiskalizacijaClient
-from fiskalhr.f1.models import BrojRacuna, NacinPlacanja, OznakaSlijednosti, Porez, Racun
+from fiskhr.core.certs import Certificate
+from fiskhr.core.environment import Environment
+from fiskhr.f1.client import FiskalizacijaClient
+from fiskhr.f1.models import BrojRacuna, NacinPlacanja, OznakaSlijednosti, Porez, Racun
 
 pytestmark = pytest.mark.demo
 
-_P12_VAR = "FISKALHR_DEMO_P12"
-_PASSWORD_VAR = "FISKALHR_DEMO_P12_PASSWORD"
-_OIB_VAR = "FISKALHR_DEMO_OIB"
+_P12_VAR = "FISKHR_DEMO_P12"
+_PASSWORD_VAR = "FISKHR_DEMO_P12_PASSWORD"
+_OIB_VAR = "FISKHR_DEMO_OIB"
 
 
 @pytest.fixture(scope="module")
@@ -41,8 +41,8 @@ def demo_client() -> FiskalizacijaClient:
 
 
 def test_echo(demo_client: FiskalizacijaClient) -> None:
-    reply = demo_client.echo("fiskalhr smoke test")
-    assert "fiskalhr smoke test" in reply
+    reply = demo_client.echo("fiskhr smoke test")
+    assert "fiskhr smoke test" in reply
 
 
 def test_fiskaliziraj_returns_jir(demo_client: FiskalizacijaClient) -> None:

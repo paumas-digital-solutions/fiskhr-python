@@ -9,9 +9,9 @@ import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from fiskalhr.core.errors import InvalidOibError
-from fiskalhr.core.signing import SignatureMethod
-from fiskalhr.f1.zki import format_iznos, izracunaj_zki, zki_payload
+from fiskhr.core.errors import InvalidOibError
+from fiskhr.core.signing import SignatureMethod
+from fiskhr.f1.zki import format_iznos, izracunaj_zki, zki_payload
 from tests.conftest import TEST_OIB
 
 

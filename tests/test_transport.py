@@ -4,8 +4,8 @@ import httpx
 import pytest
 from lxml import etree
 
-from fiskalhr.core.errors import TransportError
-from fiskalhr.core.transport import SOAP_ENV_NS, SoapClient, unwrap_soap, wrap_soap
+from fiskhr.core.errors import TransportError
+from fiskhr.core.transport import SOAP_ENV_NS, SoapClient, unwrap_soap, wrap_soap
 
 URL = "https://cis.example.invalid/service"
 ACTION = "http://example.invalid/action"

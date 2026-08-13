@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "fiskalhr"
+name = "fiskhr"
 dynamic = ["version"]
 description = "Croatian fiscalization for Python: Fiskalizacija 1.0 (B2C receipts, ZKI, CIS) and Fiskalizacija 2.0 (eRacun, UBL 2.1, HR CIUS 2025)."
 readme = "README.md"
@@ -49,7 +49,7 @@ Issues = "https://github.com/paumas-digital-solutions/fiskhr-python/issues"
 Changelog = "https://github.com/paumas-digital-solutions/fiskhr-python/blob/main/CHANGELOG.md"
 
 [project.scripts]
-fiskalhr = "fiskalhr.cli:main"
+fiskhr = "fiskhr.cli:main"
 
 [project.optional-dependencies]
 validation = [
@@ -68,10 +68,10 @@ dev = [
 
 [tool.hatch.version]
 # Single source of truth for the version; releases bump only __init__.py.
-path = "src/fiskalhr/__init__.py"
+path = "src/fiskhr/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/fiskalhr"]
+packages = ["src/fiskhr"]
 
 [tool.ruff]
 line-length = 100
@@ -121,7 +121,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["fiskalhr"]
+source = ["fiskhr"]
 
 [tool.coverage.report]
 show_missing = true

@@ -3,9 +3,9 @@
 Never run in CI (no secrets there, ever). Same configuration as the F1
 smoke tests (`tests/test_demo_smoke.py`):
 
-    export FISKALHR_DEMO_P12=/path/to/fiskalDemo.p12
-    export FISKALHR_DEMO_P12_PASSWORD=...
-    export FISKALHR_DEMO_OIB=...        # the OIB the demo cert is issued to
+    export FISKHR_DEMO_P12=/path/to/fiskalDemo.p12
+    export FISKHR_DEMO_P12_PASSWORD=...
+    export FISKHR_DEMO_OIB=...        # the OIB the demo cert is issued to
     make smoke-test
 
 These prove the XAdES-B signature profile and the message format against
@@ -23,17 +23,17 @@ from decimal import Decimal
 
 import pytest
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.environment import Environment
-from fiskalhr.f2.fiskalizacija import EFiskalizacijaClient
-from fiskalhr.f2.izvjestavanje import EIzvjestavanjeClient, Naplata
-from fiskalhr.f2.ubl import ERacun, ERacunBuilder
+from fiskhr.core.certs import Certificate
+from fiskhr.core.environment import Environment
+from fiskhr.f2.fiskalizacija import EFiskalizacijaClient
+from fiskhr.f2.izvjestavanje import EIzvjestavanjeClient, Naplata
+from fiskhr.f2.ubl import ERacun, ERacunBuilder
 
 pytestmark = pytest.mark.demo
 
-_P12_VAR = "FISKALHR_DEMO_P12"
-_PASSWORD_VAR = "FISKALHR_DEMO_P12_PASSWORD"
-_OIB_VAR = "FISKALHR_DEMO_OIB"
+_P12_VAR = "FISKHR_DEMO_P12"
+_PASSWORD_VAR = "FISKHR_DEMO_P12_PASSWORD"
+_OIB_VAR = "FISKHR_DEMO_OIB"
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +54,7 @@ def eracun() -> ERacun:
         ERacunBuilder()
         .izdavatelj(
             oib=oib,
-            naziv="fiskalhr smoke test d.o.o.",
+            naziv="fiskhr smoke test d.o.o.",
             ulica="Ulica 1",
             grad="Zagreb",
             postanski_broj="10000",
@@ -62,7 +62,7 @@ def eracun() -> ERacun:
         # The spec's own example reports the same OIB on both sides.
         .primatelj(
             oib=oib,
-            naziv="fiskalhr smoke test d.o.o.",
+            naziv="fiskhr smoke test d.o.o.",
             ulica="Ulica 1",
             grad="Zagreb",
             postanski_broj="10000",

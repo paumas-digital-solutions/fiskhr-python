@@ -7,11 +7,11 @@ from decimal import Decimal
 import pytest
 from lxml import etree
 
-from fiskalhr.core.certs import Certificate
-from fiskalhr.core.errors import FiskalizacijaError
-from fiskalhr.core.xmldsig import sign_enveloped
-from fiskalhr.f1.messages import F73_NS, build_racun_zahtjev, parse_racun_odgovor
-from fiskalhr.f1.models import (
+from fiskhr.core.certs import Certificate
+from fiskhr.core.errors import FiskalizacijaError
+from fiskhr.core.xmldsig import sign_enveloped
+from fiskhr.f1.messages import F73_NS, build_racun_zahtjev, parse_racun_odgovor
+from fiskhr.f1.models import (
     BrojRacuna,
     NacinPlacanja,
     Naknada,
@@ -20,8 +20,8 @@ from fiskalhr.f1.models import (
     PorezOstalo,
     Racun,
 )
-from fiskalhr.f1.service import schema_dir
-from fiskalhr.f1.zki import izracunaj_zki
+from fiskhr.f1.service import schema_dir
+from fiskhr.f1.zki import izracunaj_zki
 from tests.conftest import TEST_OIB, make_rsa_key, make_self_signed_cert
 
 

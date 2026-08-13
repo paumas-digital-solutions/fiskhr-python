@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from fiskalhr.f1.models import (
+from fiskhr.f1.models import (
     BrojRacuna,
     NacinPlacanja,
     OznakaSlijednosti,

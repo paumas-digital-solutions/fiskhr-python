@@ -11,7 +11,7 @@ two genuinely different systems that happen to share terminology and
 certificates. The package structure models that honestly:
 
 ```
-src/fiskalhr/
+src/fiskhr/
 ├── core/                 # regime-agnostic; may not import f1 or f2
 │   ├── certs.py          # P12 loading, cert inspection            [done]
 │   ├── environment.py    # DEMO / PRODUCTION selection             [done]
@@ -128,7 +128,7 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
    throwaway certs.
 2. **Golden fixtures** — every message type has stored request/response XML;
    regenerating a fixture is a deliberate, reviewable act.
-3. **Mock CIS server** — shipped as public API (`fiskalhr.testing`) so
+3. **Mock CIS server** — shipped as public API (`fiskhr.testing`) so
    downstream users can test their integration without the demo environment.
 4. **Demo smoke tests** — `pytest -m demo`, skipped by default, run manually
    with FINA demo certificates, never in CI.
@@ -147,7 +147,7 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
   functions (``u:ctrlOIB``), so a real XSLT 2.0 engine is unavoidable.
   The ``.sch`` is compiled once with SchXslt (Apache-2.0) and the compiled
   stylesheet is vendored, so runtime needs only SaxonC-HE (``saxonche``),
-  installed via ``fiskalhr[validation]``. Core install stays lean; XSD-only
+  installed via ``fiskhr[validation]``. Core install stays lean; XSD-only
   validation works without the extra. Regeneration procedure in SOURCES.md.
 - **XML-DSig: `signxml`** (over `lxml` + `xmlsec`). Rationale: pure-Python
   dependency chain (lxml + cryptography, no libxmlsec system library),
