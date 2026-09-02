@@ -88,6 +88,11 @@ cite it without shipping the files:
 
 ## Still to vendor
 
-- Nothing outstanding on the Porezna uprava side.
+- `UBL-ApplicationResponse-2.1.xsd`. The Tax Administration's `UBL2.1
+  eRačun.zip` ships only the Invoice and CreditNote maindoc schemas, so the
+  rejection document `fiskalhr.f2.izvjestavanje.odbijanje` produces is the
+  one document here with no schema to validate against — its shape is
+  pinned by tests instead. The schema is part of the OASIS UBL 2.1
+  distribution; vendoring it from there would close the gap.
 
 When vendoring, add exact rows to the tables above.

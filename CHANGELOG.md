@@ -19,6 +19,21 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.izvjestavanje.odbijanje` — the UBL **ApplicationResponse**
+  that tells a *supplier* their invoice was rejected, per "PU — Aplikacijski
+  odgovor v1.1". Rejecting an eRačun is two messages to two places, and the
+  specification is explicit that this one comes first: the supplier is told
+  here, the Tax Administration with `evidentiraj_odbijanje`. Both carry the
+  same `N`/`U`/`O` reason code, which is what makes them one act rather than
+  two unrelated statements, so they live side by side. An intermediary may
+  do the first for you — FINA's `odbij` does.
+
+  Unlike every other document this library produces, an
+  `ApplicationResponse` **cannot be XSD-validated**: the Tax
+  Administration's UBL bundle ships only the Invoice and CreditNote
+  schemas. Its shape — including element order, which is part of validity
+  for a UBL sequence — is pinned by tests instead.
+
 - Incoming invoices on the `Posrednik` boundary: `ulazni_racuni` lists what
   is waiting, `preuzmi` collects one (with its PDF when the sender attached
   one), and `potvrdi_primitak` / `prihvati` / `odbij` set its status. A

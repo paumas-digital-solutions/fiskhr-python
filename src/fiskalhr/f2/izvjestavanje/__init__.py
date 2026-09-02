@@ -9,6 +9,11 @@ XAdES-B signature profile.
 ``EvidentirajIsporukuZaKojuNijeIzdanERacun`` reports invoices for
 deliveries where no eRačun was issued, reusing the same digest model as
 eFiskalizacija (`fiskalhr.f2.fiskalizacija.EvidencijaERacun`).
+
+Rejecting an invoice takes two messages: ``odbijanje`` builds the UBL
+``ApplicationResponse`` that tells the *supplier*, and
+``evidentiraj_odbijanje`` tells the Tax Administration. Both carry the same
+``N``/``U``/``O`` reason code, which is what makes them one act.
 """
 
 from fiskalhr.f2.izvjestavanje.client import EIzvjestavanjeClient
@@ -26,6 +31,7 @@ from fiskalhr.f2.izvjestavanje.models import (
     Odbijanje,
     RazlogOdbijanja,
 )
+from fiskalhr.f2.izvjestavanje.odgovor import odbijanje
 
 __all__ = [
     "EIzvjestavanjeClient",
@@ -37,6 +43,7 @@ __all__ = [
     "build_evidentiraj_naplatu_zahtjev",
     "build_evidentiraj_odbijanje_zahtjev",
     "build_ovlastenja_zahtjev",
+    "odbijanje",
     "parse_izvjestavanje_odgovor",
     "parse_ovlastenja_odgovor",
 ]
