@@ -19,6 +19,20 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.fiskalizacija.evidencija_iz_xml` — read a **received** eRačun
+  into the reportable digest, so an incoming invoice can be reported with
+  `evidentiraj_ulazni` without a model of it existing first. It parses into
+  `EvidencijaERacun` rather than `fiskalhr.f2.ubl.ERacun` deliberately: the
+  builder model is narrow by design and would refuse constructs a supplier
+  legitimately used (an advance payment's `PrepaidAmount`, an issuer outside
+  the VAT system under TaxScheme `FRE`, a business-unit identifier), and a
+  received invoice must never become unreportable because of a gap in what
+  this library can build. Amounts are read, not recomputed — a sender's
+  totals are what the recipient is required to report, so a discrepancy
+  stays visible instead of being silently corrected. All twenty official
+  examples parse, and the digest derived from a built model and the digest
+  parsed back out of that model's own XML are asserted to be identical.
+
 - `fiskalhr.f2.posrednik` — **delivery**, the leg that was missing between
   building an eRačun and it reaching the buyer. `Posrednik` is the protocol
   the library ends at (the national AS4 specification puts the

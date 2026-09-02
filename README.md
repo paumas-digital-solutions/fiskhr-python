@@ -222,12 +222,12 @@ posrednik = FinaPosrednik(cert, env=Environment.DEMO)
 isporuka = posrednik.posalji(document, primatelj_oib="00000000001", broj_racuna="2026-42-P1-1")
 
 if isporuka.prihvacen:
-    print(isporuka.id_posrednika)          # FINA's identifier for the invoice
+    print(isporuka.id_posrednika)  # FINA's identifier for the invoice
 else:
-    print(isporuka.greske)                 # ((code, message), ...)
+    print(isporuka.greske)  # ((code, message), ...)
 
 odgovor = posrednik.status("2026-42-P1-1", godina=2026)
-print(odgovor.status)                      # StatusIsporuke.PRIHVACEN, .ODBIJEN, ...
+print(odgovor.status)  # StatusIsporuke.PRIHVACEN, .ODBIJEN, ...
 ```
 
 > **Do not report an invoice twice.** Sending through FINA also files it
