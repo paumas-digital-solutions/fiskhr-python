@@ -241,6 +241,33 @@ signature inside the invoice). `fiskalhr.testing.MockPosrednik` answers the
 whole conversation in-process, verifying the WS-Security signature, so you
 can build against it before a contract exists.
 
+Incoming invoices come back the same way, and a collected document turns
+straight into a report:
+
+```python
+from fiskalhr.f2.fiskalizacija import evidencija_iz_xml
+from fiskalhr.f2.izvjestavanje import RazlogOdbijanja, odbijanje
+
+for ulazni in posrednik.ulazni_racuni():
+    primljeni = posrednik.preuzmi(ulazni.id_posrednika)
+    evidencija = evidencija_iz_xml(primljeni.dokument)   # ready to report
+
+    posrednik.prihvati(ulazni.id_posrednika)
+    # ...or reject it, which is two messages to two places:
+    posrednik.odbij(
+        ulazni.id_posrednika,
+        razlog=RazlogOdbijanja.NEUSKLADJENOST_POREZ,
+        napomena="Pogrešna stopa PDV-a",
+    )
+```
+
+Rejecting tells the **supplier**; the Tax Administration is told separately
+with `evidentiraj_odbijanje`, under a codebook that asks a different
+question (whether the mismatch changes the tax computation, rather than
+whether VAT is the reason). Where delivery does not go through an
+intermediary that notifies for you, `odbijanje(...)` builds the UBL
+`ApplicationResponse` for the supplier's access point.
+
 ## Scope
 
 | Area | Included |
@@ -252,7 +279,8 @@ can build against it before a contract exists.
 | F2 validation | XSD + Schematron with structured reports |
 | F2 messages | `EvidentirajERacun`, `EvidentirajNaplatu`, `EvidentirajOdbijanje`, `EvidentirajIsporukuZaKojuNijeIzdanERacun`, `OvlastenjaFiskalizacije` |
 | F2 signing | XAdES inside the invoice's own `UBLExtensions`, WS-Security over the SOAP envelope |
-| F2 delivery | `Posrednik` protocol with a FINA e-Račun adapter (send, status, echo) |
+| F2 delivery | `Posrednik` protocol with a FINA e-Račun adapter: send, status, collect incoming, accept/reject |
+| F2 rejection | `ApplicationResponse` to the supplier plus `EvidentirajOdbijanje` to the Tax Administration |
 | Testing tools | Mock CIS server, golden fixtures, demo smoke-test harness |
 | CLI | ZKI computation, validation (`--json` for CI), echo, cert inspection, ovlastenja query |
 
