@@ -19,6 +19,22 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Vendored the remaining Porezna uprava F2 specifications: **MPS**
+  (metapodatkovni servis — the REST lookup that resolves a recipient's
+  access point), **LIPO** (`Lista identifikatora poreznih obveznika`, the
+  prose spec for the `lipo` schema that until now shipped without one), the
+  eRačun rejection model (`TS_odbijanje_eRacuna_HUP` — ApplicationResponse
+  to the supplier alongside `EvidentirajOdbijanje` to the Tax
+  Administration), and under `docs/specs/f2/pts/` the eight **Portal za
+  testiranje sukladnosti** test procedures, which define what the
+  conformance portal actually exercises and so drive the demo-environment
+  milestone. `docs/specs/SOURCES.md` also now records what FINA's interface
+  definitions establish about the delivery leg — two independent signatures
+  (WS-Security over the SOAP body, XAdES inside the invoice's own
+  `UBLExtensions`), two-way TLS, and the OIB binding between invoice and
+  signing certificate — while deliberately not vendoring FINA's files
+  themselves into this public repository.
+
 - CLI: `fiskalhr ovlastenja CERT.p12 [oib]` — asks the F2 service which
   OIBs the certificate holder may report for (OIB defaults to the one in
   the certificate subject); `fiskalhr validate --json` prints a

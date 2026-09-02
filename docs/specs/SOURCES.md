@@ -48,10 +48,46 @@ Fiskalizacija 2.0 technical documentation downloads.
 | `tests/conformance/f2/eracuni/*.xml` | 20 official eRačun examples (18 Invoice + 2 CreditNote) | All XSD-valid against the vendored UBL schemas |
 | `tests/conformance/f2/fiskalizacija/*.xml` | 13 official signed `EvidentirajERacunZahtjev` examples (SOAP-wrapped) | Signatures are **redacted placeholders** (`Id="value-id- ... "` breaks `xsd:ID`); `signed_EvidentirajERacunZahtjev_NEOP-PP_Trosak.xml` is malformed as shipped (tag mismatch) — kept verbatim, excluded from valid-corpus tests |
 | `tests/conformance/f2/eizvjestavanje/*.txt` | Official eIzvještavanje request/response examples | |
+| `f2/Tehnicka_specifikacija_eRacun_MPS.pdf` | MPS (metapodatkovni servis) specification — the REST lookup that resolves a recipient's access point | Companion to the AMS DNS lookup; 22 pages |
+| `f2/Tehnicka_specifikacija_LIPO.pdf` | LIPO specification — "Web servis - Lista identifikatora poreznih obveznika" (21 pages) | The prose spec for the `lipo` XSD/WSDL vendored above, which until now shipped without one |
+| `f2/TS_odbijanje_eRacuna_HUP.pdf` | "Tehnički model implementacije odbijanja eRačuna" (8 pages) | The rejection flow end to end: ApplicationResponse to the supplier **and** `EvidentirajOdbijanje` to the Tax Administration |
+| `f2/pts/*.pdf` | Portal za testiranje sukladnosti — official per-scenario test instructions (`upute za testiranje`) | Eight scenarios: slanje/zaprimanje eRačuna, fiskalizacija izlaznog/ulaznog eRačuna, eIzvještavanje naplate/odbijanja, MPS kreiranje/brisanje zapisa. These define what the conformance portal actually exercises, so they drive the demo-environment milestone. |
 
-## Still to vendor (Phase 4+)
+## Deliberately not vendored — FINA
 
-- FINA documentation (demo certificates, e-Račun B2B service) — needed for
-  the Phase 4 `Posrednik` reference adapter.
+FINA's e-Račun interface definitions (`SendB2BOutgoingInvoicePKIWebService`,
+`B2BFinaInvoiceWebService`, `ReceiveB2BIncomingInvoiceWebService` and the
+sample requests that go with them) are **not** kept in this repository.
+This is a public repository and those are FINA's artifacts, distributed to
+their service users; redistributing them here is not ours to do.
 
-When vendoring, add exact rows to the table above.
+The consequence for contributors: the `Posrednik` FINA adapter is written
+against message shapes documented in code, and its tests pin golden XML
+rather than validating against a vendored XSD the way the Porezna uprava
+messages do. What the FINA bundles establish, recorded here so the code can
+cite it without shipping the files:
+
+- **Two independent signatures.** The SOAP envelope carries a WS-Security
+  header (`wsu:Timestamp`, plus a `ds:Signature` over a `wsu:Id`-tagged
+  `soapenv:Body`; exclusive c14n with `InclusiveNamespaces`, RSA-SHA256,
+  `SecurityTokenReference`/`KeyIdentifier`). The UBL document carries its
+  own XAdES signature inside
+  `ext:UBLExtensions/…/sig:UBLDocumentSignatures/sac:SignatureInformation`
+  — reference `URI=""` under the XPath transform
+  `not(ancestor-or-self::sig:UBLDocumentSignatures)`, a second reference to
+  `SignedProperties`, and `xades:SigningCertificate` (ETSI v1.3.2), **not**
+  the `SigningCertificateV2` the Tax Administration's own messages use.
+- **Two-way TLS.** The client authenticates with a certificate, unlike the
+  Porezna uprava services, where the message signature is the only client
+  authentication.
+- **OIB binding.** FINA rejects a message whose invoice XML carries an OIB
+  different from the one in the signing certificate.
+- **Endpoints are not in the WSDLs** — both ship a placeholder
+  `soap:address` (`http://ADDRESS/…`), so hosts come from the service
+  contract.
+
+## Still to vendor
+
+- Nothing outstanding on the Porezna uprava side.
+
+When vendoring, add exact rows to the tables above.
