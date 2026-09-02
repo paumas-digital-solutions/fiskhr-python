@@ -356,8 +356,9 @@ def test_inbound_calls_go_to_the_zaprimanje_service(certificate: Certificate) ->
 
 
 def test_incoming_requests_use_the_buyer_header(certificate: Certificate) -> None:
-    """The receive leg heads its messages HeaderBuyer with a bare OIB, while
-    the send leg uses HeaderSupplier with the 9934: scheme prefix."""
+    """The receive leg heads its messages HeaderBuyer where the send leg uses
+    HeaderSupplier; both carry the scheme-prefixed identifier, despite the
+    bundle's schema annotating BuyerID with a bare example."""
     mock = MockPosrednik()
     posrednik = _posrednik(certificate, mock)
 
@@ -374,7 +375,7 @@ def test_incoming_requests_use_the_buyer_header(certificate: Certificate) -> Non
         for element in request.iter()
         if isinstance(element.tag, str) and etree.QName(element).localname == "BuyerID"
     )
-    assert buyer_id == OIB_IZDAVATELJ  # bare, not "9934:..."
+    assert buyer_id == f"9934:{OIB_IZDAVATELJ}"
 
 
 def test_collecting_an_unknown_invoice_fails(certificate: Certificate) -> None:

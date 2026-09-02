@@ -279,11 +279,13 @@ def _text(parent: etree._Element, name: str) -> str | None:
 # --- Incoming invoices (the B2BFinaInvoiceWebService "zaprimanje" leg) ---
 #
 # Two differences from the send leg, both easy to get wrong. The header is
-# `HeaderBuyer`, whose ``BuyerID`` the bundle's schema documents as a **bare**
-# OIB ("OIB kupca (npr. 12345678901)") — not the ``9934:``-prefixed form
-# ``HeaderSupplier`` uses. And the change-status message types are three
-# digits (107) while the retrieval ones are four (9101, 9103), which reads
-# like a typo and is not.
+# `HeaderBuyer` rather than `HeaderSupplier`; its ``BuyerID`` carries the
+# same ``9934:``-prefixed identifier, even though the bundle's schema
+# annotates the field with a bare example ("OIB kupca (npr. 12345678901)").
+# FINA's published specification and their own samples use the prefix, and
+# that is what the service expects. And the change-status message types are
+# three digits (107) while the retrieval ones are four (9101, 9103), which
+# reads like a typo and is not.
 
 _INCOMING_LIST = "http://fina.hr/eracun/b2b/sync/GetB2BIncomingInvoiceList/v0.1"
 _INCOMING = "http://fina.hr/eracun/b2b/sync/GetB2BIncomingInvoice/v0.1"
@@ -293,7 +295,7 @@ _INCOMING_STATUS = "http://fina.hr/eracun/b2b/ChangeB2BIncomingInvoiceStatus/v0.
 def _header_buyer(parent: etree._Element, *, message_id: str, oib: str, message_type: int) -> None:
     header = etree.SubElement(parent, f"{{{IWSC}}}HeaderBuyer")
     etree.SubElement(header, f"{{{IWSC}}}MessageID").text = message_id
-    etree.SubElement(header, f"{{{IWSC}}}BuyerID").text = oib
+    etree.SubElement(header, f"{{{IWSC}}}BuyerID").text = f"{OIB_SCHEME}:{oib}"
     etree.SubElement(header, f"{{{IWSC}}}MessageType").text = str(message_type)
 
 

@@ -84,7 +84,12 @@ cite it without shipping the files:
   different from the one in the signing certificate.
 - **Endpoints are not in the WSDLs** — both ship a placeholder
   `soap:address` (`http://ADDRESS/…`), so hosts come from the service
-  contract.
+  contract. Confirmed in writing by FINA support (2026-09-02).
+- **Party identifiers are scheme-prefixed** (`9934:<oib>`) on both legs —
+  `HeaderSupplier/SupplierID` and `HeaderBuyer/BuyerID` alike — even though
+  the sync bundle's schema annotates `BuyerID` with a bare example. `9934`
+  is the ISO 6523 / CEF EAS code for a Croatian OIB, and is what FINA's own
+  signed samples and every Porezna uprava example use.
 
 ## Still to vendor
 
