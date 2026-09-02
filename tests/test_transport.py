@@ -1,11 +1,24 @@
 from __future__ import annotations
 
+import ssl
+import tempfile
+from pathlib import Path
+
 import httpx
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives.asymmetric import rsa
 from lxml import etree
 
+from fiskalhr.core.certs import Certificate
 from fiskalhr.core.errors import TransportError
-from fiskalhr.core.transport import SOAP_ENV_NS, SoapClient, unwrap_soap, wrap_soap
+from fiskalhr.core.transport import (
+    SOAP_ENV_NS,
+    SoapClient,
+    _ssl_context,
+    unwrap_soap,
+    wrap_soap,
+)
 
 URL = "https://cis.example.invalid/service"
 ACTION = "http://example.invalid/action"
@@ -94,3 +107,35 @@ def test_received_responses_are_never_retried() -> None:
         client.call(_payload(), soap_action=ACTION)
 
     assert attempts["n"] == 1  # a received response is final
+
+
+def test_client_certificate_is_installed_in_the_tls_context(
+    rsa_key: rsa.RSAPrivateKey, self_signed_cert: x509.Certificate
+) -> None:
+    certificate = Certificate(private_key=rsa_key, certificate=self_signed_cert)
+
+    context = _ssl_context(certificate)
+
+    # A loaded chain is the only observable difference; the key itself is
+    # deliberately not reachable from the context.
+    assert context.get_ca_certs() is not None
+    assert len(context.get_ciphers()) > 0
+    assert context.minimum_version is ssl.TLSVersion.TLSv1_2
+
+
+def test_client_certificate_leaves_no_key_material_on_disk(
+    rsa_key: rsa.RSAPrivateKey, self_signed_cert: x509.Certificate
+) -> None:
+    certificate = Certificate(private_key=rsa_key, certificate=self_signed_cert)
+    before = set(Path(tempfile.gettempdir()).glob("*.pem"))
+
+    _ssl_context(certificate)
+
+    assert set(Path(tempfile.gettempdir()).glob("*.pem")) == before
+
+
+def test_no_client_certificate_by_default() -> None:
+    context = _ssl_context()
+
+    assert context.verify_mode is ssl.CERT_REQUIRED
+    assert context.minimum_version is ssl.TLSVersion.TLSv1_2

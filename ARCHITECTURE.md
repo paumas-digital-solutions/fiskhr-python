@@ -20,7 +20,8 @@ src/fiskalhr/
 │   ├── types.py          # OIB validation, shared value objects    [done]
 │   ├── xmldsig.py        # enveloped signature create + verify (F1)[done]
 │   ├── xades.py          # XAdES-B enveloped signatures (F2)       [done]
-│   └── transport.py      # SOAP 1.1 client, TLS 1.2+, retries      [done]
+│   ├── wsse.py           # WS-Security envelope signatures (FINA)  [done]
+│   └── transport.py      # SOAP 1.1 client, TLS 1.2+, mTLS, retries[done]
 │
 ├── f1/                   # Fiskalizacija 1.0 — B2C, CIS
 │   ├── zki.py            # offline ZKI computation                 [done]
@@ -158,7 +159,36 @@ Five layers, from `CONTRIBUTING.md`'s point of view:
   library upgrade cannot silently change the wire format. Revisit only if
   the demo-environment smoke test surfaces an interop failure.
 
-## Open questions (resolve before the relevant phase)
+## Resolved: what the FINA leg actually requires
 
-- Whether the FINA e-Račun module's own signing makes the `Posrednik` adapter
-  thinner than expected (open question with FINA support; affects Phase 4).
+The Phase 4 open question — whether FINA's own signing makes the `Posrednik`
+adapter thinner — is answered, and the answer is the opposite: it makes it
+thicker. A FINA request carries **two independent signatures**, and the
+library must produce both.
+
+1. **The envelope**, signed with WS-Security (`core/wsse.py`): one reference
+   over a `wsu:Id`-tagged SOAP `Body`, exclusive c14n with an
+   `InclusiveNamespaces` PrefixList, RSA-SHA256, and the certificate carried
+   as a `wsse:SecurityTokenReference`/`KeyIdentifier` rather than
+   `ds:X509Data`.
+2. **The invoice**, signed with XAdES inside its own `UBLExtensions` — the
+   `sac:SignatureInformation` slot `f2/ubl/xml.py` has always emitted empty.
+   Its profile differs from the Tax Administration's message signatures in
+   two ways that matter: the data reference uses the XPath transform
+   `not(ancestor-or-self::sig:UBLDocumentSignatures)` rather than the
+   enveloped-signature transform, and the signed properties carry
+   `xades:SigningCertificate` (ETSI v1.3.2), not `SigningCertificateV2`.
+
+Two further consequences for the boundary:
+
+- **2-way TLS.** Unlike the Tax Administration's services, FINA authenticates
+  the client at the transport layer as well, so `SoapClient` takes an
+  optional `client_certificate`.
+- **The OIB in the invoice must match the OIB in the signing certificate**,
+  or FINA rejects the message before it enters their system. That coupling
+  between document content and transport credential is the adapter's, not
+  the caller's, to check.
+
+FINA's interface definitions are deliberately not vendored (see
+`docs/specs/SOURCES.md`); the profiles above were derived from their sample
+requests and are pinned by tests instead of by a schema.

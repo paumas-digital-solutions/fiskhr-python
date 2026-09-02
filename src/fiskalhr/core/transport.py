@@ -7,8 +7,11 @@ response body. Policy, per the tech spec and this library's posture:
   2026-07-01, production from 2027-01-01; we never offer less anywhere.
   Certificate verification is always on; there is deliberately no parameter
   to disable it.
-- **1-way TLS**: the client authenticates messages by signing them
-  (XML-DSig), not with a TLS client certificate.
+- **1-way TLS by default**: against the Tax Administration's services the
+  client authenticates messages by signing them (XML-DSig / XAdES), not with
+  a TLS client certificate. FINA's e-Račun services are the exception — they
+  require 2-way TLS *in addition* to the message signature — so a client
+  certificate can be supplied explicitly with ``client_certificate=``.
 - **Retries only below the response boundary.** Connection errors and
   timeouts are retried (the request may never have arrived); once any HTTP
   response is received, it is never retried here — resubmission of an
@@ -20,15 +23,20 @@ response body. Policy, per the tech spec and this library's posture:
 
 from __future__ import annotations
 
+import os
 import ssl
+import tempfile
 import time
+from pathlib import Path
 
 import httpx
+from cryptography.hazmat.primitives import serialization
 from lxml import etree
 
+from fiskalhr.core.certs import Certificate
 from fiskalhr.core.errors import TransportError
 
-__all__ = ["SOAP_ENV_NS", "SoapClient"]
+__all__ = ["SOAP_ENV_NS", "SoapClient", "build_envelope", "unwrap_soap", "wrap_soap"]
 
 SOAP_ENV_NS = "http://schemas.xmlsoap.org/soap/envelope/"
 
@@ -37,18 +45,60 @@ _RETRIES = 2
 _BACKOFF_S = 1.0
 
 
-def _ssl_context() -> ssl.SSLContext:
+def _ssl_context(client_certificate: Certificate | None = None) -> ssl.SSLContext:
     context = ssl.create_default_context()
     context.minimum_version = ssl.TLSVersion.TLSv1_2
+    if client_certificate is not None:
+        _load_client_certificate(context, client_certificate)
     return context
+
+
+def _load_client_certificate(context: ssl.SSLContext, certificate: Certificate) -> None:
+    """Install a client certificate for 2-way TLS.
+
+    `ssl.SSLContext.load_cert_chain` reads from the filesystem — there is no
+    in-memory equivalent in the standard library — so the PEM is written to a
+    private temporary file, loaded, and unlinked immediately. The file exists
+    only for the duration of this call, is created 0600 by `mkstemp`, and the
+    key lives on inside the context, not on disk.
+    """
+    pem = certificate.certificate.public_bytes(serialization.Encoding.PEM)
+    for issuer in certificate.chain:
+        pem += issuer.public_bytes(serialization.Encoding.PEM)
+    pem += certificate.private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    handle, name = tempfile.mkstemp(suffix=".pem")
+    path = Path(name)
+    try:
+        with os.fdopen(handle, "wb") as file:
+            file.write(pem)
+        context.load_cert_chain(path)
+    except ssl.SSLError as exc:
+        raise TransportError(f"cannot use the client certificate for TLS: {exc}") from exc
+    finally:
+        path.unlink()
+
+
+def build_envelope(payload: etree._Element) -> etree._Element:
+    """Wrap a payload element in a SOAP 1.1 envelope, as an element.
+
+    Separate from `wrap_soap` because a WS-Security signature has to be
+    applied to the envelope *before* it is serialised
+    (`fiskalhr.core.wsse.sign_envelope_wsse`).
+    """
+    envelope = etree.Element(f"{{{SOAP_ENV_NS}}}Envelope", nsmap={"soapenv": SOAP_ENV_NS})
+    body = etree.SubElement(envelope, f"{{{SOAP_ENV_NS}}}Body")
+    body.append(payload)
+    return envelope
 
 
 def wrap_soap(payload: etree._Element) -> bytes:
     """Wrap a payload element in a SOAP 1.1 envelope."""
-    envelope = etree.Element(f"{{{SOAP_ENV_NS}}}Envelope", nsmap={"soapenv": SOAP_ENV_NS})
-    body = etree.SubElement(envelope, f"{{{SOAP_ENV_NS}}}Body")
-    body.append(payload)
-    return etree.tostring(envelope, xml_declaration=True, encoding="UTF-8")
+    return etree.tostring(build_envelope(payload), xml_declaration=True, encoding="UTF-8")
 
 
 def unwrap_soap(data: bytes) -> etree._Element:
@@ -81,6 +131,10 @@ class SoapClient:
         timeout: Per-request timeout in seconds.
         retries: Extra attempts after connection errors/timeouts only —
             never after an HTTP response was received.
+        client_certificate: Certificate to present for 2-way TLS. Required by
+            FINA's e-Račun services; the Tax Administration's services need
+            none, and passing one there is harmless but pointless. Ignored
+            when ``transport`` is set, since no TLS handshake happens then.
         transport: Optional httpx transport, injectable for testing
             (e.g. ``httpx.MockTransport`` or `fiskalhr.testing.MockCis`).
     """
@@ -91,12 +145,13 @@ class SoapClient:
         *,
         timeout: float = _TIMEOUT,
         retries: int = _RETRIES,
+        client_certificate: Certificate | None = None,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.url = url
         self.retries = retries
         self._client = httpx.Client(
-            verify=_ssl_context() if transport is None else True,
+            verify=_ssl_context(client_certificate) if transport is None else True,
             timeout=timeout,
             transport=transport,
         )
