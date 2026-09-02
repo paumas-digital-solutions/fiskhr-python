@@ -203,6 +203,44 @@ For offline testing there are `fiskalhr.testing.MockEFiskalizacija` and
 `MockEIzvjestavanje`, the F2 counterparts of `MockCis`: they XSD-validate
 requests, verify your XAdES signature, and answer with signed responses.
 
+### F2 — signing and sending through FINA
+
+Reporting is only half of F2: the invoice still has to reach the buyer,
+which goes through an informacijski posrednik. FINA is the reference
+adapter. It requires the invoice XML itself to be signed — and checks that
+its OIB matches the signing certificate's:
+
+```python
+from lxml import etree
+
+from fiskalhr.f2.posrednik import FinaPosrednik
+from fiskalhr.f2.ubl import sign_eracun, to_xml
+
+document = sign_eracun(to_xml(eracun.build()), cert)
+
+posrednik = FinaPosrednik(cert, env=Environment.DEMO)
+isporuka = posrednik.posalji(document, primatelj_oib="00000000001", broj_racuna="2026-42-P1-1")
+
+if isporuka.prihvacen:
+    print(isporuka.id_posrednika)          # FINA's identifier for the invoice
+else:
+    print(isporuka.greske)                 # ((code, message), ...)
+
+odgovor = posrednik.status("2026-42-P1-1", godina=2026)
+print(odgovor.status)                      # StatusIsporuke.PRIHVACEN, .ODBIJEN, ...
+```
+
+> **Do not report an invoice twice.** Sending through FINA also files it
+> with the Tax Administration on your behalf, so an invoice delivered by
+> `FinaPosrednik` must *not* also be reported with `EFiskalizacijaClient`.
+> Every adapter states its behaviour in `Posrednik.fiskalizira`.
+
+The delivery leg needs a FINA certificate — it authenticates three ways at
+once (2-way TLS, a WS-Security signature over the SOAP body, and the XAdES
+signature inside the invoice). `fiskalhr.testing.MockPosrednik` answers the
+whole conversation in-process, verifying the WS-Security signature, so you
+can build against it before a contract exists.
+
 ## Scope
 
 | Area | Included |
@@ -213,14 +251,18 @@ requests, verify your XAdES signature, and answer with signed responses.
 | F2 documents | UBL 2.1 builder, HR CIUS 2025 + ext-2025 conformance, KPD fields |
 | F2 validation | XSD + Schematron with structured reports |
 | F2 messages | `EvidentirajERacun`, `EvidentirajNaplatu`, `EvidentirajOdbijanje`, `EvidentirajIsporukuZaKojuNijeIzdanERacun`, `OvlastenjaFiskalizacije` |
+| F2 signing | XAdES inside the invoice's own `UBLExtensions`, WS-Security over the SOAP envelope |
+| F2 delivery | `Posrednik` protocol with a FINA e-Račun adapter (send, status, echo) |
 | Testing tools | Mock CIS server, golden fixtures, demo smoke-test harness |
 | CLI | ZKI computation, validation (`--json` for CI), echo, cert inspection, ovlastenja query |
 
 ### Explicitly out of scope
 
 - **Not an AS4/Peppol access point.** The library produces, signs, and
-  validates documents; delivery goes through a pluggable `Posrednik` adapter
-  interface (FINA e-Račun as the reference implementation).
+  validates documents; delivery goes through the pluggable `Posrednik`
+  adapter interface, with FINA e-Račun as the reference implementation. The
+  national AS4 specification puts the ERP-to-intermediary hop outside its
+  own scope, so that is exactly where this library stops.
 - **Not an ERP, POS, or accounting system.** No invoice numbering policy, no
   ledger, no persistence — stateless request/response and document
   construction only.

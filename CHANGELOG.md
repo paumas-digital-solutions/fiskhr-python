@@ -19,6 +19,32 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.posrednik` — **delivery**, the leg that was missing between
+  building an eRačun and it reaching the buyer. `Posrednik` is the protocol
+  the library ends at (the national AS4 specification puts the
+  ERP-to-intermediary hop outside its own scope, so each intermediary
+  defines its own interface); `FinaPosrednik` is the reference adapter, with
+  `posalji`, `status` and `echo` against FINA's e-Račun B2B service, and
+  `fiskalhr.testing.MockPosrednik` answers the whole conversation
+  in-process, verifying the WS-Security signature on every request.
+  Endpoints for both environments are confirmed by FINA in writing;
+  demo and production hosts differ, as do the certificates.
+
+  Two behaviours worth knowing: a **rejected invoice comes back as a result,
+  not an exception** (`Isporuka.prihvacen` with `(code, message)` pairs) —
+  it is a business event with a deadline, not a transport failure — and an
+  **unknown delivery status is reported verbatim** rather than dropped, so
+  FINA can add one without this library knowing it first. The adapter also
+  refuses locally, before sending, an unsigned invoice or one whose issuer
+  OIB disagrees with the certificate, which FINA would otherwise reject
+  opaquely.
+
+  **Sending through FINA also fiscalizes.** FINA reports invoices sent
+  through it to the Tax Administration on the sender's behalf, so an
+  invoice delivered this way must not also be reported with
+  `EFiskalizacijaClient` — that files it twice. `Posrednik.fiskalizira`
+  states each adapter's behaviour so this is decided once.
+
 - `fiskalhr.f2.ubl.sign_eracun` — XAdES signatures **inside the eRačun**,
   filling the `sac:SignatureInformation` slot `to_xml` has always emitted
   empty. Optional under the HR rules (HR-BR-33 exempts that element from

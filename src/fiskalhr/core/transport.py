@@ -164,7 +164,21 @@ class SoapClient:
                 answers with an unexpected HTTP status and no SOAP body, or
                 returns a SOAP fault.
         """
-        request_body = wrap_soap(payload)
+        return unwrap_soap(self.post_envelope(wrap_soap(payload), soap_action=soap_action))
+
+    def post_envelope(self, request_body: bytes, *, soap_action: str) -> bytes:
+        """POST an already-serialised SOAP envelope; return the raw response.
+
+        `call` wraps a payload and unwraps the answer, which is what the Tax
+        Administration's services need. FINA's need the envelope signed
+        before it goes out (`fiskalhr.core.wsse`), and re-wrapping would
+        discard that header — so the signed bytes are posted as they are,
+        through this same client and its TLS, timeout and retry policy.
+
+        Raises:
+            TransportError: If the service is unreachable after retries, or
+                answers with an unexpected HTTP status and no body.
+        """
         headers = {
             "Content-Type": "text/xml; charset=utf-8",
             "SOAPAction": f'"{soap_action}"',
@@ -180,15 +194,13 @@ class SoapClient:
                 last_error = exc
                 continue
             # A response was received: from here on, never retry.
-            # CIS answers SOAP faults with HTTP 500, so parse before status.
-            try:
-                return unwrap_soap(response.content)
-            except TransportError:
-                if response.status_code != 200 and not response.content:
-                    raise TransportError(
-                        f"service answered HTTP {response.status_code} with an empty body"
-                    ) from None
-                raise
+            # CIS answers SOAP faults with HTTP 500, so a non-200 with a body
+            # is handed back for parsing rather than treated as a failure.
+            if response.status_code != 200 and not response.content:
+                raise TransportError(
+                    f"service answered HTTP {response.status_code} with an empty body"
+                )
+            return response.content
 
         raise TransportError(
             f"cannot reach {self.url} after {self.retries + 1} attempts: {last_error}"

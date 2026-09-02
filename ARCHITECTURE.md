@@ -38,13 +38,14 @@ src/fiskalhr/
 │   ├── validation/       # XSD + Schematron, structured reports    [done]
 │   ├── fiskalizacija/    # EvidentirajERacun (XAdES-B, direct)     [done]
 │   ├── izvjestavanje/    # EvidentirajNaplatu/Odbijanje, Ovlastenja [done]
-│   ├── posrednik/        # delivery adapters (base protocol + FINA)
+│   ├── posrednik/        # delivery: Posrednik protocol + FINA     [done]
 │   └── schemas/
 │
 ├── testing/              # public test utilities for downstream users
 │   ├── mock_cis.py       # F1 mock: XSD-validating, response-signing [done]
 │   ├── mock_efiskalizacija.py  # F2 reporting mock (XAdES)         [done]
 │   ├── mock_eizvjestavanje.py  # F2 payment/rejection mock         [done]
+│   ├── mock_posrednik.py # F2 delivery mock (WS-Security)          [done]
 │   └── fixtures.py
 │
 └── cli.py                # cert info, zki, echo                    [growing]
@@ -110,6 +111,19 @@ UBL document and receives delivery status back. One reference adapter (FINA
 e-Račun) ships with the library; the community can add more. Anything that
 smells like transport-level AS4 belongs behind that interface, in someone
 else's package.
+
+The boundary held, and the national specification is the reason it had to:
+the ERP-to-intermediary hop is explicitly outside the AS4 profile ("Način
+komunikacije i protokoli prijenosa podataka u ovom koraku procesa nisu
+predmet ove specifikacije"), so every intermediary defines its own
+interface. `Posrednik` is where that variation stops.
+
+One consequence the protocol has to carry rather than hide:
+**an intermediary may fiscalize on your behalf.** FINA reports invoices sent
+through it to the Tax Administration for its B2B and B2G users, so a caller
+that also calls `EFiskalizacijaClient` for the same invoice files it twice.
+`Posrednik.fiskalizira` states the adapter's behaviour so that is a decision
+made once, not a guess made per invoice.
 
 ## What stays out of the library
 
