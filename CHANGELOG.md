@@ -19,6 +19,36 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- `fiskalhr.f2.ubl.sign_eracun` — XAdES signatures **inside the eRačun**,
+  filling the `sac:SignatureInformation` slot `to_xml` has always emitted
+  empty. Optional under the HR rules (HR-BR-33 exempts that element from
+  the no-empty-elements rule) but required for delivery through FINA, which
+  also checks the invoice's OIB against the signing certificate's. This is
+  the library's third signature profile and shares nothing with the other
+  two: the data reference is `URI=""` under the XPath transform
+  `not(ancestor-or-self::sig:UBLDocumentSignatures)` rather than the
+  enveloped-signature transform (so the digest is identical before and
+  after signing, and a second signature can be added without invalidating
+  the first), the node-set is canonicalised *inclusively* per XML-DSig
+  §4.3.3.2 while `SignedInfo` and `SignedProperties` use exclusive c14n,
+  and the signed properties carry `xades:SigningCertificate` (ETSI v1.3.2),
+  not the `SigningCertificateV2` the Tax Administration's messages use. A
+  signed invoice still passes the complete official validation — XSD plus
+  the full HR CIUS 2025 Schematron — with zero findings, which the test
+  suite asserts.
+
+- `fiskalhr.core.wsse.sign_envelope_wsse` — WS-Security signatures over a
+  SOAP envelope's `Body`, which is how FINA authenticates a caller (the Tax
+  Administration's services authenticate by the signature inside the
+  message instead, so this is new ground for the library): one reference
+  over a `wsu:Id`-tagged `Body`, exclusive c14n with an
+  `InclusiveNamespaces` PrefixList, RSA-SHA256, and the certificate carried
+  as a `wsse:SecurityTokenReference`/`KeyIdentifier` rather than
+  `ds:X509Data`. `SoapClient` gained `client_certificate=` for the 2-way
+  TLS those services also require; the standard library can only load a
+  chain from disk, so the PEM goes to a 0600 temporary file that is
+  unlinked within the same call.
+
 - Vendored the remaining Porezna uprava F2 specifications: **MPS**
   (metapodatkovni servis — the REST lookup that resolves a recipient's
   access point), **LIPO** (`Lista identifikatora poreznih obveznika`, the
