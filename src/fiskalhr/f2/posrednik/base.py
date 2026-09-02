@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from lxml import etree
@@ -35,8 +36,11 @@ __all__ = [
     "Isporuka",
     "Posrednik",
     "PosrednikError",
+    "PrimljeniERacun",
+    "RazlogOdbijanja",
     "StatusIsporuke",
     "StatusOdgovor",
+    "UlazniRacun",
 ]
 
 
@@ -115,6 +119,71 @@ class StatusOdgovor:
     dodatno: dict[str, str] = field(default_factory=dict)
 
 
+class RazlogOdbijanja(enum.StrEnum):
+    """Why an incoming invoice is being rejected.
+
+    FINA's own codebook, which is coarser than the Tax Administration's
+    (`fiskalhr.f2.izvjestavanje.RazlogOdbijanja`, ``N``/``U``/``O``): here
+    the distinction is whether VAT is the reason, there it is whether the
+    mismatch changes the tax computation. Rejecting an invoice means saying
+    both, to the supplier and to the Tax Administration.
+    """
+
+    PDV = "VAT_REASON"
+    """A VAT-related reason."""
+    NIJE_PDV = "NOT_VAT_REASON"
+    """A reason unrelated to VAT."""
+    OSTALO = "OTHER_REASON"
+
+
+@dataclass(frozen=True)
+class UlazniRacun:
+    """One entry in the list of invoices waiting to be collected.
+
+    A summary only — `Posrednik.preuzmi` fetches the document itself.
+
+    Attributes:
+        id_posrednika: The intermediary's identifier, which is what every
+            later call addresses the invoice by.
+        broj_racuna: The invoice number as its issuer numbered it.
+        izdavatelj_oib: The issuer's OIB.
+        izdavatelj_naziv: The issuer's registered name.
+        datum_izdavanja: Issue date.
+        iznos: Payable amount, as the issuer stated it.
+        valuta: Currency of that amount.
+        vrijeme: When the intermediary received it.
+    """
+
+    id_posrednika: str
+    broj_racuna: str | None = None
+    izdavatelj_oib: str | None = None
+    izdavatelj_naziv: str | None = None
+    datum_izdavanja: date | None = None
+    iznos: Decimal | None = None
+    valuta: str | None = None
+    vrijeme: datetime | None = None
+
+
+@dataclass(frozen=True)
+class PrimljeniERacun:
+    """A collected incoming eRačun.
+
+    Attributes:
+        id_posrednika: The intermediary's identifier for it.
+        dokument: The UBL Invoice or CreditNote, parsed. Report it with
+            `fiskalhr.f2.fiskalizacija.evidencija_iz_xml` and
+            ``evidentiraj_ulazni`` — unless the intermediary already
+            fiscalized it on your behalf (`Posrednik.fiskalizira`).
+        pdf: The accompanying PDF, when one was sent, as raw bytes.
+        vrijeme: When the intermediary received it.
+    """
+
+    id_posrednika: str
+    dokument: etree._Element
+    pdf: bytes | None = None
+    vrijeme: datetime | None = None
+
+
 @runtime_checkable
 class Posrednik(Protocol):
     """What this library needs from an informacijski posrednik.
@@ -153,4 +222,36 @@ class Posrednik(Protocol):
 
     def echo(self, text: str = "ping") -> str:
         """Round-trip a string; proves credentials and connectivity."""
+        ...
+
+    def ulazni_racuni(self) -> tuple[UlazniRacun, ...]:
+        """List the incoming eRačuni waiting to be collected."""
+        ...
+
+    def preuzmi(self, id_posrednika: str) -> PrimljeniERacun:
+        """Collect one incoming eRačun by the intermediary's identifier."""
+        ...
+
+    def potvrdi_primitak(self, id_posrednika: str) -> None:
+        """Confirm receipt of an incoming eRačun."""
+        ...
+
+    def prihvati(self, id_posrednika: str, *, napomena: str | None = None) -> None:
+        """Accept an incoming eRačun."""
+        ...
+
+    def odbij(
+        self,
+        id_posrednika: str,
+        *,
+        razlog: RazlogOdbijanja,
+        napomena: str | None = None,
+    ) -> None:
+        """Reject an incoming eRačun, telling the supplier why.
+
+        This is only half of a rejection: the recipient must also report it
+        to the Tax Administration with
+        `fiskalhr.f2.izvjestavanje.EIzvjestavanjeClient.evidentiraj_odbijanje`,
+        unless the intermediary does that too (`fiskalizira`).
+        """
         ...

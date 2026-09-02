@@ -19,6 +19,13 @@ explanation rather than as an opaque rejection.
 Administration on the sender's behalf, so ``fiskalizira`` is True and a
 caller should not also report the same invoice with
 `fiskalhr.f2.fiskalizacija.EFiskalizacijaClient` — that would file it twice.
+The same holds for an incoming invoice once its status is set.
+
+**Two services, one client.** Sending goes to
+``SendB2BOutgoingInvoicePKIWebService`` and everything about incoming
+invoices to ``B2BFinaInvoiceWebService``, at a different URL. Both take the
+same certificate and the same signatures, so this adapter holds a client for
+each and routes by operation.
 """
 
 from __future__ import annotations
@@ -33,12 +40,25 @@ from fiskalhr.core.environment import Environment
 from fiskalhr.core.transport import SoapClient, build_envelope, unwrap_soap
 from fiskalhr.core.types import validate_oib
 from fiskalhr.core.wsse import sign_envelope_wsse
-from fiskalhr.f2.posrednik.base import Isporuka, PosrednikError, StatusOdgovor
+from fiskalhr.f2.posrednik.base import (
+    Isporuka,
+    PosrednikError,
+    PrimljeniERacun,
+    RazlogOdbijanja,
+    StatusIsporuke,
+    StatusOdgovor,
+    UlazniRacun,
+)
 from fiskalhr.f2.posrednik.messages import (
     build_echo,
+    build_incoming_invoice,
+    build_incoming_list,
+    build_incoming_status,
     build_send_invoice,
     build_status_query,
     parse_echo,
+    parse_incoming_invoice,
+    parse_incoming_list,
     parse_send_ack,
     parse_status_ack,
 )
@@ -51,7 +71,14 @@ _SOAP_ACTIONS = {
     "echo": "http://fina.hr/eracun/b2b/Echo",
     "send": "http://fina.hr/eracun/b2b/SendB2BOutgoingInvoice",
     "status": "http://fina.hr/eracun/b2b/GetB2BOutgoingInvoiceStatus",
+    "incoming_list": "http://fina.hr/eracun/b2b/GetB2BIncomingInvoiceList",
+    "incoming_get": "http://fina.hr/eracun/b2b/GetB2BIncomingInvoice",
+    "incoming_status": "http://fina.hr/eracun/b2b/ChangeB2BIncomingInvoiceStatus",
 }
+
+_INBOUND = frozenset({"incoming_list", "incoming_get", "incoming_status"})
+"""Operations served by B2BFinaInvoiceWebService rather than the send
+service — a different endpoint, same certificate and signing."""
 
 
 class FinaPosrednik:
@@ -102,6 +129,12 @@ class FinaPosrednik:
             client_certificate=certificate if transport is None else None,
             transport=transport,
         )
+        self._zaprimanje = SoapClient(
+            FINA_SERVICE_URLS[(FinaServis.ZAPRIMANJE, env)],
+            timeout=timeout,
+            client_certificate=certificate if transport is None else None,
+            transport=transport,
+        )
 
     def echo(self, text: str = "ping") -> str:
         """Round-trip a string. Proves TLS, credentials and signing at once."""
@@ -148,11 +181,84 @@ class FinaPosrednik:
         )
         return parse_status_ack(self._call(request, action="status"))
 
+    def ulazni_racuni(self) -> tuple[UlazniRacun, ...]:
+        """List the incoming eRačuni waiting to be collected.
+
+        Summaries only — `preuzmi` fetches a document. An empty tuple is the
+        normal answer when nothing is waiting.
+        """
+        request = build_incoming_list(message_id=_message_id(), oib=self.oib)
+        return parse_incoming_list(self._call(request, action="incoming_list"))
+
+    def preuzmi(self, id_posrednika: str) -> PrimljeniERacun:
+        """Collect one incoming eRačun, with its PDF when one was sent.
+
+        Args:
+            id_posrednika: FINA's ``InvoiceID``, from `ulazni_racuni`.
+
+        Raises:
+            PosrednikError: FINA rejected the request, or the document it
+                returned is not well-formed.
+        """
+        request = build_incoming_invoice(id_posrednika, message_id=_message_id(), oib=self.oib)
+        return parse_incoming_invoice(self._call(request, action="incoming_get"))
+
+    def potvrdi_primitak(self, id_posrednika: str) -> None:
+        """Confirm receipt of an incoming eRačun (``RECEIVING_CONFIRMED``)."""
+        self._promijeni_status(id_posrednika, StatusIsporuke.ZAPRIMANJE_POTVRDJENO)
+
+    def prihvati(self, id_posrednika: str, *, napomena: str | None = None) -> None:
+        """Accept an incoming eRačun (``APPROVED``)."""
+        self._promijeni_status(id_posrednika, StatusIsporuke.PRIHVACEN, napomena=napomena)
+
+    def odbij(
+        self,
+        id_posrednika: str,
+        *,
+        razlog: RazlogOdbijanja,
+        napomena: str | None = None,
+    ) -> None:
+        """Reject an incoming eRačun (``REJECTED``), telling FINA why.
+
+        This tells the *supplier*. The Tax Administration has to be told
+        separately, with
+        `fiskalhr.f2.izvjestavanje.EIzvjestavanjeClient.evidentiraj_odbijanje`
+        — unless FINA files that for you (`fiskalizira`). The two codebooks
+        differ: FINA asks whether VAT is the reason, the Tax Administration
+        whether the mismatch changes the tax computation.
+        """
+        self._promijeni_status(
+            id_posrednika, StatusIsporuke.ODBIJEN, razlog=razlog, napomena=napomena
+        )
+
+    def _promijeni_status(
+        self,
+        id_posrednika: str,
+        status: StatusIsporuke,
+        *,
+        razlog: RazlogOdbijanja | None = None,
+        napomena: str | None = None,
+    ) -> None:
+        request = build_incoming_status(
+            id_posrednika,
+            status=status.value,
+            razlog=razlog.value if razlog is not None else None,
+            napomena=napomena,
+            message_id=_message_id(),
+            oib=self.oib,
+        )
+        # A status change answers with an acknowledgement and nothing else;
+        # parsing it is only about surfacing a rejection.
+        self._call(request, action="incoming_status")
+
     def _call(self, request: etree._Element, *, action: str) -> etree._Element:
         envelope = sign_envelope_wsse(build_envelope(request), self.certificate)
-        return self._post(envelope, soap_action=_SOAP_ACTIONS[action])
+        client = self._zaprimanje if action in _INBOUND else self._slanje
+        return self._post(envelope, client, soap_action=_SOAP_ACTIONS[action])
 
-    def _post(self, envelope: etree._Element, *, soap_action: str) -> etree._Element:
+    def _post(
+        self, envelope: etree._Element, client: SoapClient, *, soap_action: str
+    ) -> etree._Element:
         """POST an already-signed envelope.
 
         `SoapClient.call` builds and wraps the envelope itself, which would
@@ -161,8 +267,7 @@ class FinaPosrednik:
         and retry policy.
         """
         body = etree.tostring(envelope, xml_declaration=True, encoding="UTF-8")
-        response = self._slanje.post_envelope(body, soap_action=soap_action)
-        return unwrap_soap(response)
+        return unwrap_soap(client.post_envelope(body, soap_action=soap_action))
 
     def _check_signed(self, document: etree._Element) -> None:
         """The signature slot exists on every built document but is empty
@@ -197,6 +302,7 @@ class FinaPosrednik:
 
     def close(self) -> None:
         self._slanje.close()
+        self._zaprimanje.close()
 
     def __enter__(self) -> FinaPosrednik:
         return self

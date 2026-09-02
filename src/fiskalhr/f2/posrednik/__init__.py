@@ -14,8 +14,11 @@ from fiskalhr.f2.posrednik.base import (
     Isporuka,
     Posrednik,
     PosrednikError,
+    PrimljeniERacun,
+    RazlogOdbijanja,
     StatusIsporuke,
     StatusOdgovor,
+    UlazniRacun,
 )
 from fiskalhr.f2.posrednik.fina import FinaPosrednik
 from fiskalhr.f2.posrednik.service import FINA_SERVICE_URLS, FinaServis
@@ -27,6 +30,9 @@ __all__ = [
     "Isporuka",
     "Posrednik",
     "PosrednikError",
+    "PrimljeniERacun",
+    "RazlogOdbijanja",
     "StatusIsporuke",
     "StatusOdgovor",
+    "UlazniRacun",
 ]

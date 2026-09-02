@@ -53,6 +53,10 @@ class MockPosrednik:
     Attributes:
         primljeni: Every invoice received, by invoice number, as the decoded
             UBL document. Assert against it to check what was actually sent.
+        ulazni: Incoming invoices queued with `dodaj_ulazni`, waiting to be
+            listed and collected.
+        statusi: Every status change applied to an incoming invoice, as
+            ``(id, status, reason, note)``.
     """
 
     def __init__(
@@ -67,7 +71,15 @@ class MockPosrednik:
         self.require_signature = require_signature
         self.primljeni: dict[str, etree._Element] = {}
         self.zahtjevi: list[etree._Element] = []
+        self.ulazni: dict[str, tuple[etree._Element, bytes | None]] = {}
+        self.statusi: list[tuple[str, str, str | None, str | None]] = []
         self._next_id = 1000
+
+    def dodaj_ulazni(
+        self, id_posrednika: str, document: etree._Element, *, pdf: bytes | None = None
+    ) -> None:
+        """Queue an incoming eRačun for the client to collect."""
+        self.ulazni[id_posrednika] = (document, pdf)
 
     def transport(self) -> httpx.MockTransport:
         """An httpx transport to hand to `FinaPosrednik(transport=...)`."""
@@ -90,6 +102,12 @@ class MockPosrednik:
             return self._send(message)
         if name == "GetB2BOutgoingInvoiceStatusMsg":
             return self._status(message)
+        if name == "GetB2BIncomingInvoiceListMsg":
+            return self._incoming_list(message)
+        if name == "GetB2BIncomingInvoiceMsg":
+            return self._incoming_invoice(message)
+        if name == "ChangeB2BIncomingInvoiceStatusMsg":
+            return self._incoming_status(message)
         return self._fault(f"unknown operation {name}")
 
     def _verify_signature(self, envelope: etree._Element) -> None:
@@ -146,6 +164,61 @@ class MockPosrednik:
         etree.SubElement(status, f"{{{_ACK_NS}}}StatusTimestamp").text = (
             datetime.now(UTC).replace(microsecond=0, tzinfo=None).isoformat()
         )
+        return self._respond(response)
+
+    def _incoming_list(self, message: etree._Element) -> httpx.Response:
+        response = self._ack_root("GetB2BIncomingInvoiceListAckMsg", message, message_type=9102)
+        wrapper = etree.SubElement(response, f"{{{_ACK_NS}}}B2BIncomingInvoiceList")
+        for identifier, (document, _pdf) in self.ulazni.items():
+            entry = etree.SubElement(wrapper, f"{{{_ACK_NS}}}B2BIncomingInvoice")
+            etree.SubElement(entry, f"{{{_ACK_NS}}}InvoiceID").text = identifier
+            etree.SubElement(entry, f"{{{_ACK_NS}}}SupplierID").text = "9934:12345678903"
+            etree.SubElement(
+                entry, f"{{{_ACK_NS}}}SupplierRegistrationName"
+            ).text = "Dobavljac d.o.o."
+            etree.SubElement(entry, f"{{{_ACK_NS}}}SupplierInvoiceID").text = _text(document, "ID")
+            etree.SubElement(entry, f"{{{_ACK_NS}}}InvoiceIssueDate").text = _text(
+                document, "IssueDate"
+            )
+            etree.SubElement(entry, f"{{{_ACK_NS}}}InvoicePayableAmount").text = "125.00"
+            etree.SubElement(entry, f"{{{_ACK_NS}}}DocumentCurrencyCode").text = "EUR"
+        return self._respond(response)
+
+    def _incoming_invoice(self, message: etree._Element) -> httpx.Response:
+        identifier = _text(message, "InvoiceID") or ""
+        entry = self.ulazni.get(identifier)
+        if entry is None:
+            return self._fault(f"unknown incoming invoice {identifier}")
+        document, pdf = entry
+
+        response = self._ack_root("GetB2BIncomingInvoiceAckMsg", message, message_type=9104)
+        wrapper = etree.SubElement(response, f"{{{_ACK_NS}}}B2BIncomingInvoice")
+        etree.SubElement(wrapper, f"{{{_ACK_NS}}}InvoiceID").text = identifier
+        envelope = etree.SubElement(wrapper, f"{{{_ACK_NS}}}IncomingInvoiceEnvelope")
+        element = (
+            "CreditNoteEnvelope"
+            if etree.QName(document).localname == "CreditNote"
+            else "InvoiceEnvelope"
+        )
+        etree.SubElement(envelope, f"{{{_ACK_NS}}}{element}").text = base64.b64encode(
+            etree.tostring(document, xml_declaration=True, encoding="UTF-8")
+        ).decode("ascii")
+        if pdf is not None:
+            etree.SubElement(envelope, f"{{{_ACK_NS}}}PdfDocument").text = base64.b64encode(
+                pdf
+            ).decode("ascii")
+        return self._respond(response)
+
+    def _incoming_status(self, message: etree._Element) -> httpx.Response:
+        self.statusi.append(
+            (
+                _text(message, "InvoiceID") or "",
+                _text(message, "StatusCode") or "",
+                _text(message, "CodeReason"),
+                _text(message, "Note"),
+            )
+        )
+        response = self._ack_root("ChangeB2BIncomingInvoiceStatusAckMsg", message, message_type=108)
         return self._respond(response)
 
     def _ack_root(self, name: str, request: etree._Element, *, message_type: int) -> etree._Element:

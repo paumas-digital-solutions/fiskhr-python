@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, time
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -15,12 +16,14 @@ from fiskalhr.core.environment import Environment
 from fiskalhr.core.errors import TransportError
 from fiskalhr.core.transport import SOAP_ENV_NS
 from fiskalhr.core.wsse import WSSE_NS
+from fiskalhr.f2.fiskalizacija import evidencija_iz_xml
 from fiskalhr.f2.posrednik import (
     FINA_SERVICE_URLS,
     FinaPosrednik,
     FinaServis,
     Posrednik,
     PosrednikError,
+    RazlogOdbijanja,
     StatusIsporuke,
 )
 from fiskalhr.f2.ubl import ERacunBuilder, sign_eracun, to_xml
@@ -254,3 +257,128 @@ def test_sender_oib_defaults_to_the_certificate(certificate: Certificate) -> Non
     posrednik = FinaPosrednik(certificate, transport=MockPosrednik().transport())
 
     assert posrednik.oib == certificate.oib
+
+
+# --- Incoming invoices ---
+
+
+def test_lists_incoming_invoices(certificate: Certificate) -> None:
+    mock = MockPosrednik()
+    mock.dodaj_ulazni("500123", _document())
+    posrednik = _posrednik(certificate, mock)
+
+    ulazni = posrednik.ulazni_racuni()
+
+    assert len(ulazni) == 1
+    assert ulazni[0].id_posrednika == "500123"
+    assert ulazni[0].broj_racuna == BROJ
+    assert ulazni[0].izdavatelj_naziv == "Dobavljac d.o.o."
+    # The list carries 9934:oib; the OIB alone is what a caller wants.
+    assert ulazni[0].izdavatelj_oib == "12345678903"
+    assert ulazni[0].iznos == Decimal("125.00")
+
+
+def test_an_empty_inbox_is_not_an_error(certificate: Certificate) -> None:
+    posrednik = _posrednik(certificate, MockPosrednik())
+
+    assert posrednik.ulazni_racuni() == ()
+
+
+def test_collects_an_incoming_invoice_with_its_pdf(certificate: Certificate) -> None:
+    mock = MockPosrednik()
+    mock.dodaj_ulazni("500123", _document(), pdf=b"%PDF-1.7 fake")
+    posrednik = _posrednik(certificate, mock)
+
+    primljeni = posrednik.preuzmi("500123")
+
+    assert primljeni.id_posrednika == "500123"
+    assert etree.QName(primljeni.dokument).localname == "Invoice"
+    assert primljeni.pdf == b"%PDF-1.7 fake"
+
+
+def test_a_collected_invoice_can_be_reported_as_incoming(certificate: Certificate) -> None:
+    """The point of collecting one: it has to become a reportable digest."""
+    mock = MockPosrednik()
+    mock.dodaj_ulazni("500123", _document())
+    posrednik = _posrednik(certificate, mock)
+
+    primljeni = posrednik.preuzmi("500123")
+    evidencija = evidencija_iz_xml(primljeni.dokument)
+
+    assert evidencija.broj == BROJ
+    assert evidencija.izdavatelj.oib == OIB_IZDAVATELJ
+
+
+def test_collects_a_credit_note(certificate: Certificate) -> None:
+    mock = MockPosrednik()
+    mock.dodaj_ulazni("500124", _document("381"))
+    posrednik = _posrednik(certificate, mock)
+
+    primljeni = posrednik.preuzmi("500124")
+
+    assert etree.QName(primljeni.dokument).localname == "CreditNote"
+
+
+def test_confirming_accepting_and_rejecting_set_the_right_status(
+    certificate: Certificate,
+) -> None:
+    mock = MockPosrednik()
+    posrednik = _posrednik(certificate, mock)
+
+    posrednik.potvrdi_primitak("500123")
+    posrednik.prihvati("500124", napomena="U redu")
+    posrednik.odbij("500125", razlog=RazlogOdbijanja.PDV, napomena="Kriva stopa PDV-a")
+
+    assert mock.statusi == [
+        ("500123", "RECEIVING_CONFIRMED", None, None),
+        ("500124", "APPROVED", None, "U redu"),
+        ("500125", "REJECTED", "VAT_REASON", "Kriva stopa PDV-a"),
+    ]
+
+
+def test_inbound_calls_go_to_the_zaprimanje_service(certificate: Certificate) -> None:
+    """Sending and receiving are different FINA services at different URLs;
+    routing an inbound call to the send endpoint would 404 in production."""
+    seen: list[str] = []
+
+    def recording(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return MockPosrednik()._handle(request)
+
+    posrednik = FinaPosrednik(
+        certificate, oib=OIB_IZDAVATELJ, transport=httpx.MockTransport(recording)
+    )
+    posrednik.ulazni_racuni()
+    posrednik.echo()
+
+    assert "B2BFinaInvoiceWebService" in seen[0]
+    assert "SendB2BOutgoingInvoicePKIWebService" in seen[1]
+
+
+def test_incoming_requests_use_the_buyer_header(certificate: Certificate) -> None:
+    """The receive leg heads its messages HeaderBuyer with a bare OIB, while
+    the send leg uses HeaderSupplier with the 9934: scheme prefix."""
+    mock = MockPosrednik()
+    posrednik = _posrednik(certificate, mock)
+
+    posrednik.ulazni_racuni()
+
+    request = mock.zahtjevi[-1]
+    names = {
+        etree.QName(element).localname for element in request.iter() if isinstance(element.tag, str)
+    }
+    assert "HeaderBuyer" in names
+    assert "HeaderSupplier" not in names
+    buyer_id = next(
+        element.text
+        for element in request.iter()
+        if isinstance(element.tag, str) and etree.QName(element).localname == "BuyerID"
+    )
+    assert buyer_id == OIB_IZDAVATELJ  # bare, not "9934:..."
+
+
+def test_collecting_an_unknown_invoice_fails(certificate: Certificate) -> None:
+    posrednik = _posrednik(certificate, MockPosrednik())
+
+    with pytest.raises(TransportError, match="unknown incoming invoice"):
+        posrednik.preuzmi("999999")

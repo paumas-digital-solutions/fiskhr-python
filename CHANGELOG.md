@@ -19,6 +19,24 @@ targets (see `docs/specs/SOURCES.md`).
 
 ### Added
 
+- Incoming invoices on the `Posrednik` boundary: `ulazni_racuni` lists what
+  is waiting, `preuzmi` collects one (with its PDF when the sender attached
+  one), and `potvrdi_primitak` / `prihvati` / `odbij` set its status. A
+  collected document goes straight into
+  `fiskalhr.f2.fiskalizacija.evidencija_iz_xml` to be reported as an
+  incoming eRačun. Rejecting through the intermediary tells the *supplier*;
+  the Tax Administration still has to be told separately with
+  `evidentiraj_odbijanje`, and the two codebooks differ — FINA asks whether
+  VAT is the reason, the Tax Administration whether the mismatch changes the
+  tax computation.
+
+  Incoming operations go to a **different FINA service** than sending
+  (`B2BFinaInvoiceWebService`, not `SendB2BOutgoingInvoicePKIWebService`) at
+  a different URL, with the same certificate and signatures, so the adapter
+  holds a client for each and routes by operation. Their messages are also
+  headed differently: `HeaderBuyer` with a bare OIB, where the send leg uses
+  `HeaderSupplier` with the `9934:` scheme prefix.
+
 - `fiskalhr.f2.fiskalizacija.evidencija_iz_xml` — read a **received** eRačun
   into the reportable digest, so an incoming invoice can be reported with
   `evidentiraj_ulazni` without a model of it existing first. It parses into
